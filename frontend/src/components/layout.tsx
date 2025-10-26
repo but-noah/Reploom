@@ -11,6 +11,7 @@ import DocumentsPage from '@/pages/DocumentsPage';
 import InboxPage from '@/pages/InboxPage';
 import ReviewPage from '@/pages/ReviewPage';
 import SettingsPage from '@/pages/SettingsPage';
+import AnalyticsPage from '@/pages/AnalyticsPage';
 
 export default function Layout() {
   const { user } = useAuth();
@@ -38,6 +39,7 @@ export default function Layout() {
             <ActiveLink href="/">Chat</ActiveLink>
             <ActiveLink href="/documents">Documents</ActiveLink>
             <ActiveLink href="/inbox">Review Inbox</ActiveLink>
+            <ActiveLink href="/analytics">Analytics</ActiveLink>
             <ActiveLink href="/settings">Settings</ActiveLink>
           </nav>
         </div>
@@ -63,6 +65,7 @@ export default function Layout() {
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/inbox" element={<InboxPage />} />
             <Route path="/review/:id" element={<ReviewPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </div>

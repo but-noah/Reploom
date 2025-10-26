@@ -1,0 +1,64 @@
+{
+  "window": "7d",
+  "workspace_id": "ws-example-123",
+  "period_start": "2025-10-19T00:00:00Z",
+  "period_end": "2025-10-26T00:00:00Z",
+  "metrics": {
+    "intents_count": {
+      "support": 45,
+      "cs": 30,
+      "exec": 15,
+      "other": 10
+    },
+    "review_rate": {
+      "total": 100,
+      "approved": 60,
+      "rejected": 20,
+      "editing": 10,
+      "pending": 10,
+      "approved_rate": 60.0,
+      "rejected_rate": 20.0,
+      "editing_rate": 10.0,
+      "pending_rate": 10.0
+    },
+    "frt": {
+      "avg_seconds": 180.5,
+      "median_seconds": 150.0,
+      "min_seconds": 30.0,
+      "max_seconds": 450.0,
+      "sla_threshold_seconds": 300,
+      "sla_met_count": 75,
+      "sla_met_percentage": 83.33,
+      "total_with_frt": 90
+    }
+  },
+  "trend": {
+    "intents_count_previous": {
+      "support": 40,
+      "cs": 25,
+      "exec": 20,
+      "other": 15
+    },
+    "review_rate_previous": {
+      "total": 100,
+      "approved": 55,
+      "rejected": 25,
+      "editing": 12,
+      "pending": 8,
+      "approved_rate": 55.0,
+      "rejected_rate": 25.0,
+      "editing_rate": 12.0,
+      "pending_rate": 8.0
+    },
+    "frt_previous": {
+      "avg_seconds": 210.0,
+      "median_seconds": 180.0,
+      "min_seconds": 45.0,
+      "max_seconds": 500.0,
+      "sla_threshold_seconds": 300,
+      "sla_met_count": 70,
+      "sla_met_percentage": 77.78,
+      "total_with_frt": 90
+    }
+  }
+}
