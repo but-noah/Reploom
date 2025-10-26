@@ -1,7 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "Assistant0: An AI Personal Assistant Secured with Auth0 - LangGraph Python/FastAPI Version"
+description = "Reploom: AI-Powered Multi-Agent Email Responder - LangGraph Python/FastAPI Backend"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -27,3 +27,32 @@ dependencies = [
     "langchain-postgres>=0.0.15",
     "greenlet>=3.2.3",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # do not perform function calls in argument defaults
+    "W191",  # indentation contains tabs
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
