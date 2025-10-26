@@ -21,8 +21,11 @@ from app.core.auth import auth_client
 from app.core.db import get_session
 from app.agents.reploom_crew import prepare_initial_state
 from app.models.draft_reviews import DraftReview
+from app.core.tracing import get_tracer, safe_span_attributes
+from opentelemetry.trace import Status, StatusCode
 
 logger = logging.getLogger(__name__)
+tracer = get_tracer(__name__)
 
 reploom_router = APIRouter(prefix="/agents/reploom", tags=["reploom"])
 
@@ -113,129 +116,159 @@ async def run_draft(
     user = auth_session.get("user", {})
     user_sub = user.get("sub", "unknown")
 
-    # Log request with PII redaction
-    logger.info(
-        f"Draft generation requested",
-        extra={
-            "correlation_id": correlation_id,
-            "user": redact_user_info(user),
-            "workspace_id": request_body.workspace_id or "default",
-            "message_length": len(request_body.message_excerpt),
-        }
-    )
+    with tracer.start_as_current_span("langgraph.run_draft") as span:
+        # Set initial span attributes (PII-safe)
+        span.set_attributes(safe_span_attributes(
+            correlation_id=correlation_id,
+            workspace_id=request_body.workspace_id or "default",
+            message_excerpt=request_body.message_excerpt,  # Will be sanitized
+            has_thread_id=bool(request_body.thread_id)
+        ))
 
-    try:
-        # Generate thread ID if not provided
-        thread_id = request_body.thread_id or f"thread-{user_sub[:8]}-{uuid.uuid4().hex[:8]}"
-
-        # Prepare initial state (loads workspace settings)
-        initial_state = prepare_initial_state(
-            message_summary=request_body.message_excerpt,
-            workspace_id=request_body.workspace_id,
-            thread_id=thread_id,
+        # Log request with PII redaction
+        logger.info(
+            f"Draft generation requested",
+            extra={
+                "correlation_id": correlation_id,
+                "user": redact_user_info(user),
+                "workspace_id": request_body.workspace_id or "default",
+                "message_length": len(request_body.message_excerpt),
+            }
         )
 
-        # Build the LangGraph API request
-        langgraph_url = f"{settings.LANGGRAPH_API_URL}/threads/{thread_id}/runs/wait"
+        try:
+            # Generate thread ID if not provided
+            thread_id = request_body.thread_id or f"thread-{user_sub[:8]}-{uuid.uuid4().hex[:8]}"
 
-        # Prepare headers with correlation ID
-        headers = {
-            "Content-Type": "application/json",
-            "x-correlation-id": correlation_id,
-        }
-        if settings.LANGGRAPH_API_KEY:
-            headers["x-api-key"] = settings.LANGGRAPH_API_KEY
+            # Set thread_id in span
+            span.set_attribute("thread_id", thread_id)
 
-        # Make the request to LangGraph server
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                langgraph_url,
-                json={
-                    "assistant_id": "reploom-crew",
-                    "input": initial_state,
-                    "config": {
-                        "configurable": {
-                            "thread_id": thread_id,
-                            "_credentials": {
-                                "access_token": auth_session.get("token_sets", [{}])[0].get("access_token"),
-                                "refresh_token": auth_session.get("refresh_token"),
-                                "user": user,
-                            }
-                        }
-                    },
-                    "stream_mode": "values",
-                },
-                headers=headers,
+            # Prepare initial state (loads workspace settings)
+            initial_state = prepare_initial_state(
+                message_summary=request_body.message_excerpt,
+                workspace_id=request_body.workspace_id,
+                thread_id=thread_id,
             )
 
-            if response.status_code != 200:
-                logger.error(
-                    f"LangGraph server error",
+            # Build the LangGraph API request
+            langgraph_url = f"{settings.LANGGRAPH_API_URL}/threads/{thread_id}/runs/wait"
+
+            # Prepare headers with correlation ID
+            headers = {
+                "Content-Type": "application/json",
+                "x-correlation-id": correlation_id,
+            }
+            if settings.LANGGRAPH_API_KEY:
+                headers["x-api-key"] = settings.LANGGRAPH_API_KEY
+
+            # Make the request to LangGraph server
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(
+                    langgraph_url,
+                    json={
+                        "assistant_id": "reploom-crew",
+                        "input": initial_state,
+                        "config": {
+                            "configurable": {
+                                "thread_id": thread_id,
+                                "_credentials": {
+                                    "access_token": auth_session.get("token_sets", [{}])[0].get("access_token"),
+                                    "refresh_token": auth_session.get("refresh_token"),
+                                    "user": user,
+                                }
+                            }
+                        },
+                        "stream_mode": "values",
+                    },
+                    headers=headers,
+                )
+
+                if response.status_code != 200:
+                    logger.error(
+                        f"LangGraph server error",
+                        extra={
+                            "correlation_id": correlation_id,
+                            "status_code": response.status_code,
+                            "error": response.text[:200],  # Truncate error
+                        }
+                    )
+                    span.set_status(Status(StatusCode.ERROR, f"HTTP {response.status_code}"))
+                    span.set_attribute("http.status_code", response.status_code)
+                    raise HTTPException(
+                        status_code=response.status_code,
+                        detail=f"LangGraph server error: {response.status_code}"
+                    )
+
+                # Parse the response
+                result = response.json()
+
+                # Extract run ID from response
+                run_id = str(uuid.uuid4())  # Fallback
+                if isinstance(result, dict):
+                    run_id = result.get("run_id", run_id)
+
+                # Add intent and confidence to span (KEY REQUIREMENT)
+                intent = result.get("intent")
+                confidence = result.get("confidence")
+                if intent:
+                    span.set_attribute("draft.intent", intent)
+                if confidence is not None:
+                    span.set_attribute("draft.confidence", confidence)
+                span.set_attribute("draft.has_violations", bool(result.get("violations")))
+                span.set_attribute("run_id", run_id)
+
+                # Log successful completion
+                logger.info(
+                    f"Draft generation completed",
                     extra={
                         "correlation_id": correlation_id,
-                        "status_code": response.status_code,
-                        "error": response.text[:200],  # Truncate error
+                        "thread_id": thread_id,
+                        "run_id": run_id,
+                        "intent": intent,
+                        "confidence": confidence,
+                        "has_violations": bool(result.get("violations")),
                     }
                 )
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=f"LangGraph server error: {response.status_code}"
+
+                span.set_status(Status(StatusCode.OK))
+
+                return RunDraftResponse(
+                    draft_html=result.get("draft_html"),
+                    confidence=confidence,
+                    intent=intent,
+                    violations=result.get("violations", []),
+                    thread_id=thread_id,
+                    run_id=run_id,
                 )
 
-            # Parse the response
-            result = response.json()
-
-            # Extract run ID from response
-            run_id = str(uuid.uuid4())  # Fallback
-            if isinstance(result, dict):
-                run_id = result.get("run_id", run_id)
-
-            # Log successful completion
-            logger.info(
-                f"Draft generation completed",
+        except httpx.RequestError as e:
+            logger.error(
+                f"Failed to connect to LangGraph server",
                 extra={
                     "correlation_id": correlation_id,
-                    "thread_id": thread_id,
-                    "run_id": run_id,
-                    "intent": result.get("intent"),
-                    "confidence": result.get("confidence"),
-                    "has_violations": bool(result.get("violations")),
+                    "error": str(e),
                 }
             )
-
-            return RunDraftResponse(
-                draft_html=result.get("draft_html"),
-                confidence=result.get("confidence"),
-                intent=result.get("intent"),
-                violations=result.get("violations", []),
-                thread_id=thread_id,
-                run_id=run_id,
+            span.set_status(Status(StatusCode.ERROR, "Connection error"))
+            span.set_attribute("error.type", "network_error")
+            raise HTTPException(
+                status_code=503,
+                detail=f"Failed to connect to LangGraph server: {str(e)}"
             )
-
-    except httpx.RequestError as e:
-        logger.error(
-            f"Failed to connect to LangGraph server",
-            extra={
-                "correlation_id": correlation_id,
-                "error": str(e),
-            }
-        )
-        raise HTTPException(
-            status_code=503,
-            detail=f"Failed to connect to LangGraph server: {str(e)}"
-        )
-    except Exception as e:
-        logger.error(
-            f"Internal server error",
-            extra={
-                "correlation_id": correlation_id,
-                "error": str(e),
-            }
-        )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
+        except Exception as e:
+            logger.error(
+                f"Internal server error",
+                extra={
+                    "correlation_id": correlation_id,
+                    "error": str(e),
+                }
+            )
+            span.set_status(Status(StatusCode.ERROR, f"Unexpected: {type(e).__name__}"))
+            span.set_attribute("error.type", type(e).__name__)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Internal server error: {str(e)}"
+            )
 
 
 @reploom_router.get("/runs/{thread_id}", response_model=RunStateResponse)

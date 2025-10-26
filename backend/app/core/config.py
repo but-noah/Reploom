@@ -78,6 +78,10 @@ class Settings(BaseSettings):
         "http://localhost:8000"
     ]
 
+    # OpenTelemetry Configuration
+    OTEL_TRACES_EXPORTER: str = "console"  # "console", "otlp", or "none"
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"  # gRPC endpoint
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def ALL_CORS_ORIGINS(self) -> list[str]:

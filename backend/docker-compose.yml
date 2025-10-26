@@ -51,7 +51,49 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  # ============================================================================
+  # Observability Stack (Optional - Uncomment to enable)
+  # ============================================================================
+  # jaeger:
+  #   image: jaegertracing/all-in-one:latest
+  #   container_name: reploom_jaeger
+  #   ports:
+  #     - "16686:16686"  # Jaeger UI
+  #     - "4317:4317"    # OTLP gRPC receiver
+  #     - "4318:4318"    # OTLP HTTP receiver
+  #   environment:
+  #     - COLLECTOR_OTLP_ENABLED=true
+  #   restart: unless-stopped
+  #
+  # # Alternatively, use Grafana Tempo for a lighter trace backend
+  # # tempo:
+  # #   image: grafana/tempo:latest
+  # #   container_name: reploom_tempo
+  # #   command: [ "-config.file=/etc/tempo.yaml" ]
+  # #   volumes:
+  # #     - ./tempo.yaml:/etc/tempo.yaml
+  # #     - tempo_data:/tmp/tempo
+  # #   ports:
+  # #     - "4317:4317"   # OTLP gRPC
+  # #     - "4318:4318"   # OTLP HTTP
+  # #     - "3200:3200"   # Tempo UI
+  # #   restart: unless-stopped
+  # #
+  # # grafana:
+  # #   image: grafana/grafana:latest
+  # #   container_name: reploom_grafana
+  # #   ports:
+  # #     - "3000:3000"   # Grafana UI
+  # #   environment:
+  # #     - GF_AUTH_ANONYMOUS_ENABLED=true
+  # #     - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+  # #   volumes:
+  # #     - grafana_data:/var/lib/grafana
+  # #   restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
   qdrant_data:
+  # tempo_data:    # Uncomment if using Tempo
+  # grafana_data:  # Uncomment if using Grafana

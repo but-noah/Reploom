@@ -11,8 +11,11 @@ import httpx
 from fastapi import HTTPException
 
 from app.core.config import settings
+from app.core.tracing import get_tracer, safe_span_attributes
+from opentelemetry.trace import Status, StatusCode
 
 logger = logging.getLogger(__name__)
+tracer = get_tracer(__name__)
 
 
 class TokenExchangeError(Exception):
@@ -74,164 +77,191 @@ async def get_google_access_token(user_sub: str, scopes: list[str]) -> str:
         ... )
         >>> # Use token to call Gmail API
     """
-    # Validate configuration
-    if not all([
-        settings.AUTH0_DOMAIN,
-        settings.AUTH0_CUSTOM_API_CLIENT_ID,
-        settings.AUTH0_CUSTOM_API_CLIENT_SECRET,
-        settings.AUTH0_AUDIENCE
-    ]):
-        logger.error("Missing Auth0 Token Vault configuration")
-        raise HTTPException(
-            status_code=500,
-            detail="Token exchange service is not configured. Please contact support."
-        )
+    with tracer.start_as_current_span("token_exchange.get_google_access_token") as span:
+        # Set span attributes (user_sub will be masked by safe_span_attributes)
+        span.set_attributes(safe_span_attributes(
+            user_sub=user_sub,
+            scopes_count=len(scopes),
+            provider="google"
+        ))
 
-    # Prepare token exchange request
-    token_url = f"https://{settings.AUTH0_DOMAIN}/oauth/token"
-    scope_string = " ".join(scopes)
-
-    payload = {
-        "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
-        "client_id": settings.AUTH0_CUSTOM_API_CLIENT_ID,
-        "client_secret": settings.AUTH0_CUSTOM_API_CLIENT_SECRET,
-        "audience": settings.AUTH0_AUDIENCE,
-        "subject_token_type": "urn:ietf:params:oauth:token-type:id_token",
-        "subject_token": user_sub,  # Use user_sub to identify the user
-        "scope": scope_string,
-        "requested_token_type": "urn:ietf:params:oauth:token-type:access_token"
-    }
-
-    # Log the request (redact sensitive data)
-    logger.info(
-        "Initiating token exchange",
-        extra={
-            "user_sub": user_sub[:8] + "..." if len(user_sub) > 8 else "[redacted]",
-            "scopes": scopes,
-            "domain": settings.AUTH0_DOMAIN
-        }
-    )
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                token_url,
-                data=payload,
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
-                timeout=10.0
+        # Validate configuration
+        if not all([
+            settings.AUTH0_DOMAIN,
+            settings.AUTH0_CUSTOM_API_CLIENT_ID,
+            settings.AUTH0_CUSTOM_API_CLIENT_SECRET,
+            settings.AUTH0_AUDIENCE
+        ]):
+            logger.error("Missing Auth0 Token Vault configuration")
+            span.set_status(Status(StatusCode.ERROR, "Missing configuration"))
+            raise HTTPException(
+                status_code=500,
+                detail="Token exchange service is not configured. Please contact support."
             )
 
-            # Handle specific error cases
-            if response.status_code == 401:
-                error_data = response.json() if response.content else {}
-                error_description = error_data.get("error_description", "")
+        # Prepare token exchange request
+        token_url = f"https://{settings.AUTH0_DOMAIN}/oauth/token"
+        scope_string = " ".join(scopes)
 
-                logger.warning(
-                    "Token exchange failed: Unauthorized",
-                    extra={
-                        "user_sub": user_sub[:8] + "...",
-                        "error": error_data.get("error"),
-                        "error_description": error_description
-                    }
+        payload = {
+            "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
+            "client_id": settings.AUTH0_CUSTOM_API_CLIENT_ID,
+            "client_secret": settings.AUTH0_CUSTOM_API_CLIENT_SECRET,
+            "audience": settings.AUTH0_AUDIENCE,
+            "subject_token_type": "urn:ietf:params:oauth:token-type:id_token",
+            "subject_token": user_sub,  # Use user_sub to identify the user
+            "scope": scope_string,
+            "requested_token_type": "urn:ietf:params:oauth:token-type:access_token"
+        }
+
+        # Log the request (redact sensitive data)
+        logger.info(
+            "Initiating token exchange",
+            extra={
+                "user_sub": user_sub[:8] + "..." if len(user_sub) > 8 else "[redacted]",
+                "scopes": scopes,
+                "domain": settings.AUTH0_DOMAIN
+            }
+        )
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    token_url,
+                    data=payload,
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                    timeout=10.0
                 )
 
-                raise InvalidGrantError(
-                    message=f"Authorization failed: {error_description or 'Invalid credentials'}"
-                )
+                # Handle specific error cases
+                if response.status_code == 401:
+                    error_data = response.json() if response.content else {}
+                    error_description = error_data.get("error_description", "")
 
-            elif response.status_code == 403:
-                error_data = response.json() if response.content else {}
-                error_description = error_data.get("error_description", "")
+                    logger.warning(
+                        "Token exchange failed: Unauthorized",
+                        extra={
+                            "user_sub": user_sub[:8] + "...",
+                            "error": error_data.get("error"),
+                            "error_description": error_description
+                        }
+                    )
+                    span.set_status(Status(StatusCode.ERROR, "Unauthorized"))
+                    span.set_attribute("error.type", "invalid_grant")
 
-                logger.warning(
-                    "Token exchange failed: Insufficient scope",
-                    extra={
-                        "user_sub": user_sub[:8] + "...",
-                        "requested_scopes": scopes,
-                        "error_description": error_description
-                    }
-                )
-
-                # Check for specific scope-related errors
-                if "scope" in error_description.lower() or "permission" in error_description.lower():
-                    raise InsufficientScopeError(
-                        message="Please reconnect your Gmail account and grant the required permissions"
+                    raise InvalidGrantError(
+                        message=f"Authorization failed: {error_description or 'Invalid credentials'}"
                     )
 
-                raise TokenExchangeError(
-                    message=f"Access denied: {error_description}",
-                    status_code=403,
-                    error_code="access_denied"
-                )
+                elif response.status_code == 403:
+                    error_data = response.json() if response.content else {}
+                    error_description = error_data.get("error_description", "")
 
-            elif response.status_code >= 400:
-                error_data = response.json() if response.content else {}
-                error_msg = error_data.get("error_description", "Unknown error")
+                    logger.warning(
+                        "Token exchange failed: Insufficient scope",
+                        extra={
+                            "user_sub": user_sub[:8] + "...",
+                            "requested_scopes": scopes,
+                            "error_description": error_description
+                        }
+                    )
+                    span.set_status(Status(StatusCode.ERROR, "Insufficient scope"))
+                    span.set_attribute("error.type", "insufficient_scope")
 
-                logger.error(
-                    "Token exchange failed",
+                    # Check for specific scope-related errors
+                    if "scope" in error_description.lower() or "permission" in error_description.lower():
+                        raise InsufficientScopeError(
+                            message="Please reconnect your Gmail account and grant the required permissions"
+                        )
+
+                    raise TokenExchangeError(
+                        message=f"Access denied: {error_description}",
+                        status_code=403,
+                        error_code="access_denied"
+                    )
+
+                elif response.status_code >= 400:
+                    error_data = response.json() if response.content else {}
+                    error_msg = error_data.get("error_description", "Unknown error")
+
+                    logger.error(
+                        "Token exchange failed",
+                        extra={
+                            "status_code": response.status_code,
+                            "error": error_data.get("error"),
+                            "error_description": error_msg
+                        }
+                    )
+                    span.set_status(Status(StatusCode.ERROR, f"HTTP {response.status_code}"))
+                    span.set_attribute("http.status_code", response.status_code)
+
+                    raise TokenExchangeError(
+                        message=f"Token exchange failed: {error_msg}",
+                        status_code=response.status_code,
+                        error_code=error_data.get("error", "token_exchange_error")
+                    )
+
+                # Success case
+                response.raise_for_status()
+                token_data = response.json()
+                access_token = token_data.get("access_token")
+
+                if not access_token:
+                    logger.error("Token exchange response missing access_token field")
+                    span.set_status(Status(StatusCode.ERROR, "Missing access token"))
+                    raise TokenExchangeError(
+                        message="Invalid token response from authorization server",
+                        status_code=500,
+                        error_code="invalid_token_response"
+                    )
+
+                # Log success (never log the actual token)
+                logger.info(
+                    "Token exchange successful",
                     extra={
-                        "status_code": response.status_code,
-                        "error": error_data.get("error"),
-                        "error_description": error_msg
+                        "user_sub": user_sub[:8] + "...",
+                        "token_type": token_data.get("token_type", "Bearer"),
+                        "expires_in": token_data.get("expires_in")
                     }
                 )
 
-                raise TokenExchangeError(
-                    message=f"Token exchange failed: {error_msg}",
-                    status_code=response.status_code,
-                    error_code=error_data.get("error", "token_exchange_error")
-                )
+                span.set_status(Status(StatusCode.OK))
+                span.set_attribute("token_type", token_data.get("token_type", "Bearer"))
+                if token_data.get("expires_in"):
+                    span.set_attribute("expires_in_seconds", token_data.get("expires_in"))
 
-            # Success case
-            response.raise_for_status()
-            token_data = response.json()
-            access_token = token_data.get("access_token")
+                return access_token
 
-            if not access_token:
-                logger.error("Token exchange response missing access_token field")
-                raise TokenExchangeError(
-                    message="Invalid token response from authorization server",
-                    status_code=500,
-                    error_code="invalid_token_response"
-                )
-
-            # Log success (never log the actual token)
-            logger.info(
-                "Token exchange successful",
-                extra={
-                    "user_sub": user_sub[:8] + "...",
-                    "token_type": token_data.get("token_type", "Bearer"),
-                    "expires_in": token_data.get("expires_in")
-                }
+        except httpx.TimeoutException:
+            logger.error("Token exchange timeout", extra={"user_sub": user_sub[:8] + "..."})
+            span.set_status(Status(StatusCode.ERROR, "Timeout"))
+            span.set_attribute("error.type", "timeout")
+            raise HTTPException(
+                status_code=504,
+                detail="Token exchange service timeout. Please try again."
             )
-
-            return access_token
-
-    except httpx.TimeoutException:
-        logger.error("Token exchange timeout", extra={"user_sub": user_sub[:8] + "..."})
-        raise HTTPException(
-            status_code=504,
-            detail="Token exchange service timeout. Please try again."
-        )
-    except httpx.RequestError as e:
-        logger.error(
-            "Token exchange network error",
-            extra={"user_sub": user_sub[:8] + "...", "error": str(e)}
-        )
-        raise HTTPException(
-            status_code=503,
-            detail="Unable to connect to authorization service. Please try again later."
-        )
-    except (InsufficientScopeError, InvalidGrantError, TokenExchangeError):
-        # Re-raise our custom exceptions
-        raise
-    except Exception as e:
-        logger.exception(
-            "Unexpected error during token exchange",
-            extra={"user_sub": user_sub[:8] + "...", "error_type": type(e).__name__}
-        )
-        raise HTTPException(
-            status_code=500,
-            detail="An unexpected error occurred. Please try again or contact support."
-        )
+        except httpx.RequestError as e:
+            logger.error(
+                "Token exchange network error",
+                extra={"user_sub": user_sub[:8] + "...", "error": str(e)}
+            )
+            span.set_status(Status(StatusCode.ERROR, "Network error"))
+            span.set_attribute("error.type", "network_error")
+            raise HTTPException(
+                status_code=503,
+                detail="Unable to connect to authorization service. Please try again later."
+            )
+        except (InsufficientScopeError, InvalidGrantError, TokenExchangeError):
+            # Re-raise our custom exceptions (span status already set)
+            raise
+        except Exception as e:
+            logger.exception(
+                "Unexpected error during token exchange",
+                extra={"user_sub": user_sub[:8] + "...", "error_type": type(e).__name__}
+            )
+            span.set_status(Status(StatusCode.ERROR, f"Unexpected: {type(e).__name__}"))
+            span.set_attribute("error.type", type(e).__name__)
+            raise HTTPException(
+                status_code=500,
+                detail="An unexpected error occurred. Please try again or contact support."
+            )
