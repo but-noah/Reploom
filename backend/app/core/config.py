@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str
 
+    # Redis
+    REDIS_URL: str = "redis://localhost:6379/0"
+
+    # Qdrant Vector Database
+    QDRANT_URL: str = "http://localhost:6333"
+    QDRANT_API_KEY: str = ""
+    QDRANT_COLLECTION_NAME: str = "reploom_documents"
+
     # LangGraph server
     LANGGRAPH_API_URL: str = "http://localhost:54367"
     LANGGRAPH_API_KEY: str = ""
