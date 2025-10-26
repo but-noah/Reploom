@@ -15,12 +15,14 @@ class WorkspaceConfig:
     def __init__(
         self,
         workspace_id: str,
-        tone_level: Literal["formal", "friendly", "casual"],
+        tone_level: int,
+        style_json: dict,
         blocklist: list[str],
         approval_threshold: float | None = None,
     ):
         self.workspace_id = workspace_id
         self.tone_level = tone_level
+        self.style_json = style_json
         self.blocklist = blocklist
         self.approval_threshold = approval_threshold
 
@@ -58,6 +60,7 @@ def get_workspace_settings(workspace_id: str | None) -> WorkspaceConfig:
                 return WorkspaceConfig(
                     workspace_id=result.workspace_id,
                     tone_level=result.tone_level,
+                    style_json=result.style_json,
                     blocklist=result.blocklist_json,
                     approval_threshold=result.approval_threshold,
                 )
@@ -76,6 +79,7 @@ def get_workspace_settings(workspace_id: str | None) -> WorkspaceConfig:
                     return WorkspaceConfig(
                         workspace_id="default",
                         tone_level=result.tone_level,
+                        style_json=result.style_json,
                         blocklist=result.blocklist_json,
                         approval_threshold=result.approval_threshold,
                     )
@@ -93,6 +97,7 @@ def get_workspace_settings(workspace_id: str | None) -> WorkspaceConfig:
     return WorkspaceConfig(
         workspace_id=stub["workspace_id"],
         tone_level=stub["tone_level"],
+        style_json=stub.get("style_json", {}),
         blocklist=stub["blocklist_json"],
         approval_threshold=stub.get("approval_threshold"),
     )
