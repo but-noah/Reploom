@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -10,17 +10,12 @@ import {
   DialogFooter,
   DialogClose,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import {
-  deleteDocument,
-  getDocumentContent,
-  shareDocument,
-  type Document,
-} from "@/lib/documents";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { deleteDocument, getDocumentContent, shareDocument, type Document } from '@/lib/documents';
 
 interface DocumentItemActionsProps {
-  doc: Omit<Document, "content">;
+  doc: Omit<Document, 'content'>;
   onActionComplete?: () => void; // To trigger revalidation on the parent page
 }
 
@@ -36,11 +31,8 @@ function base64toUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
-export default function DocumentItemActions({
-  doc,
-  onActionComplete,
-}: DocumentItemActionsProps) {
-  const [emailToShare, setEmailToShare] = useState("");
+export default function DocumentItemActions({ doc, onActionComplete }: DocumentItemActionsProps) {
+  const [emailToShare, setEmailToShare] = useState('');
   const [openShareDialog, setOpenShareDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -49,12 +41,12 @@ export default function DocumentItemActions({
       // Fetch the document content
       const content = await getDocumentContent(doc.id);
       if (!content) {
-        throw new Error("Failed to download document");
+        throw new Error('Failed to download document');
       }
       const bytes = base64toUint8Array(content);
       const blob = new Blob([bytes], { type: doc.fileType });
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
+      const a = document.createElement('a');
       a.href = url;
       a.download = doc.fileName;
       document.body.appendChild(a);
@@ -64,25 +56,25 @@ export default function DocumentItemActions({
 
       toast.success(`Downloaded ${doc.fileName} successfully`);
     } catch (error) {
-      console.error("Error downloading document:", error);
-      toast.error("Failed to download document");
+      console.error('Error downloading document:', error);
+      toast.error('Failed to download document');
     }
   };
 
   const handleShareSubmit = async () => {
     if (!emailToShare.trim()) {
-      toast.error("Please enter an email address to share with.");
+      toast.error('Please enter an email address to share with.');
       return;
     }
     setIsProcessing(true);
     try {
-      await shareDocument(doc.id, emailToShare.split(","));
+      await shareDocument(doc.id, emailToShare.split(','));
       toast.success(`${doc.fileName} shared with ${emailToShare}.`);
-      onActionComplete && onActionComplete(); // Trigger revalidation
-      setEmailToShare(""); // Reset email input
+      onActionComplete?.(); // Trigger revalidation
+      setEmailToShare(''); // Reset email input
     } catch (error) {
-      console.error("Error sharing document:", error);
-      toast.error("Failed to share document.");
+      console.error('Error sharing document:', error);
+      toast.error('Failed to share document.');
     }
     setIsProcessing(false);
     setOpenShareDialog(false);
@@ -93,39 +85,29 @@ export default function DocumentItemActions({
     try {
       await deleteDocument(doc.id);
       toast.success(`${doc.fileName} deleted successfully.`);
-      onActionComplete && onActionComplete(); // Trigger revalidation
+      onActionComplete?.(); // Trigger revalidation
     } catch (error) {
-      console.error("Error deleting document:", error);
-      toast.error("Failed to delete document.");
+      console.error('Error deleting document:', error);
+      toast.error('Failed to delete document.');
     }
     setIsProcessing(false);
   };
 
   return (
     <div className="flex space-x-2">
-      <Button
-        onClick={handleDownload}
-        variant="outline"
-        size="sm"
-        disabled={isProcessing}
-      >
+      <Button onClick={handleDownload} variant="outline" size="sm" disabled={isProcessing}>
         Download
       </Button>
 
       <Dialog
         open={openShareDialog}
-        onOpenChange={(open) => {
+        onOpenChange={open => {
           setOpenShareDialog(open);
-          setEmailToShare("");
+          setEmailToShare('');
         }}
       >
         <DialogTrigger asChild>
-          <Button
-            variant="outline"
-            className="bg-blue-600"
-            size="sm"
-            disabled={isProcessing}
-          >
+          <Button variant="outline" className="bg-blue-600" size="sm" disabled={isProcessing}>
             Share
           </Button>
         </DialogTrigger>
@@ -133,8 +115,8 @@ export default function DocumentItemActions({
           <DialogHeader>
             <DialogTitle>Share {doc.fileName}</DialogTitle>
             <DialogDescription>
-              Enter the email addresses (comma separated) of the users you want
-              to share this document with. They will get read-only access.
+              Enter the email addresses (comma separated) of the users you want to share this
+              document with. They will get read-only access.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -146,7 +128,7 @@ export default function DocumentItemActions({
                 id="email"
                 type="email"
                 value={emailToShare}
-                onChange={(e) => setEmailToShare(e.target.value)}
+                onChange={e => setEmailToShare(e.target.value)}
                 placeholder="user@example.com"
                 className="col-span-3"
                 disabled={isProcessing}
@@ -164,7 +146,7 @@ export default function DocumentItemActions({
               onClick={handleShareSubmit}
               disabled={isProcessing || !emailToShare.trim()}
             >
-              {isProcessing ? "Sharing..." : "Share Document"}
+              {isProcessing ? 'Sharing...' : 'Share Document'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -180,8 +162,8 @@ export default function DocumentItemActions({
           <DialogHeader>
             <DialogTitle>Are you absolutely sure?</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. This will permanently delete the
-              document ({doc.fileName}) and its associated data.
+              This action cannot be undone. This will permanently delete the document (
+              {doc.fileName}) and its associated data.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -190,12 +172,8 @@ export default function DocumentItemActions({
                 Cancel
               </Button>
             </DialogClose>
-            <Button
-              onClick={handleDeleteConfirm}
-              disabled={isProcessing}
-              variant="destructive"
-            >
-              {isProcessing ? "Deleting..." : "Yes, delete document"}
+            <Button onClick={handleDeleteConfirm} disabled={isProcessing} variant="destructive">
+              {isProcessing ? 'Deleting...' : 'Yes, delete document'}
             </Button>
           </DialogFooter>
         </DialogContent>

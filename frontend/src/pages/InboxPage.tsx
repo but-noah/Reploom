@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router";
-import { listReviews, type DraftReview } from "../lib/reviews";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router';
+import { listReviews, type DraftReview } from '../lib/reviews';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
 import {
   Table,
   TableBody,
@@ -11,27 +11,27 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../components/ui/table";
+} from '../components/ui/table';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
-import { Filter, RefreshCcw } from "lucide-react";
+} from '../components/ui/dropdown-menu';
+import { Filter, RefreshCcw } from 'lucide-react';
 
 const statusColors = {
-  pending: "warning",
-  approved: "success",
-  rejected: "destructive",
-  editing: "info",
+  pending: 'warning',
+  approved: 'success',
+  rejected: 'destructive',
+  editing: 'info',
 } as const;
 
 const intentColors = {
-  support: "info",
-  cs: "warning",
-  exec: "destructive",
-  other: "secondary",
+  support: 'info',
+  cs: 'warning',
+  exec: 'destructive',
+  other: 'secondary',
 } as const;
 
 export default function InboxPage() {
@@ -44,7 +44,7 @@ export default function InboxPage() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["reviews", statusFilter, intentFilter],
+    queryKey: ['reviews', statusFilter, intentFilter],
     queryFn: () =>
       listReviews({
         status: statusFilter,
@@ -54,28 +54,26 @@ export default function InboxPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     }).format(date);
   };
 
   const getConfidenceColor = (confidence: number | null) => {
-    if (!confidence) return "text-muted-foreground";
-    if (confidence >= 0.8) return "text-green-600";
-    if (confidence >= 0.6) return "text-yellow-600";
-    return "text-red-600";
+    if (!confidence) return 'text-muted-foreground';
+    if (confidence >= 0.8) return 'text-green-600';
+    if (confidence >= 0.6) return 'text-yellow-600';
+    return 'text-red-600';
   };
 
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-2">Draft Review Inbox</h1>
-        <p className="text-muted-foreground">
-          Review and approve generated drafts before sending
-        </p>
+        <p className="text-muted-foreground">Review and approve generated drafts before sending</p>
       </div>
 
       <div className="flex items-center gap-4 mb-6">
@@ -83,25 +81,19 @@ export default function InboxPage() {
           <DropdownMenuTrigger asChild>
             <Button variant="outline">
               <Filter className="mr-2 h-4 w-4" />
-              Status: {statusFilter || "All"}
+              Status: {statusFilter || 'All'}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => setStatusFilter(undefined)}>
-              All
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter("pending")}>
-              Pending
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter("approved")}>
+            <DropdownMenuItem onClick={() => setStatusFilter(undefined)}>All</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setStatusFilter('pending')}>Pending</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setStatusFilter('approved')}>
               Approved
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter("rejected")}>
+            <DropdownMenuItem onClick={() => setStatusFilter('rejected')}>
               Rejected
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setStatusFilter("editing")}>
-              Editing
-            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setStatusFilter('editing')}>Editing</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -109,25 +101,17 @@ export default function InboxPage() {
           <DropdownMenuTrigger asChild>
             <Button variant="outline">
               <Filter className="mr-2 h-4 w-4" />
-              Intent: {intentFilter || "All"}
+              Intent: {intentFilter || 'All'}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => setIntentFilter(undefined)}>
-              All
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setIntentFilter("support")}>
-              Support
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setIntentFilter("cs")}>
+            <DropdownMenuItem onClick={() => setIntentFilter(undefined)}>All</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setIntentFilter('support')}>Support</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setIntentFilter('cs')}>
               Customer Service
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setIntentFilter("exec")}>
-              Executive
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setIntentFilter("other")}>
-              Other
-            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setIntentFilter('exec')}>Executive</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setIntentFilter('other')}>Other</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -137,9 +121,7 @@ export default function InboxPage() {
       </div>
 
       {isLoading && (
-        <div className="text-center py-12 text-muted-foreground">
-          Loading reviews...
-        </div>
+        <div className="text-center py-12 text-muted-foreground">Loading reviews...</div>
       )}
 
       {error && (
@@ -172,9 +154,7 @@ export default function InboxPage() {
               {reviews.map((review: DraftReview) => (
                 <TableRow key={review.id}>
                   <TableCell className="max-w-md">
-                    <div className="truncate font-medium">
-                      {review.original_message_summary}
-                    </div>
+                    <div className="truncate font-medium">{review.original_message_summary}</div>
                     <div className="text-xs text-muted-foreground">
                       Thread: {review.thread_id.substring(0, 16)}...
                     </div>
@@ -183,9 +163,7 @@ export default function InboxPage() {
                     {review.intent ? (
                       <Badge
                         variant={
-                          intentColors[
-                            review.intent as keyof typeof intentColors
-                          ] || "secondary"
+                          intentColors[review.intent as keyof typeof intentColors] || 'secondary'
                         }
                       >
                         {review.intent}
@@ -196,11 +174,7 @@ export default function InboxPage() {
                   </TableCell>
                   <TableCell>
                     {review.confidence ? (
-                      <span
-                        className={`font-medium ${getConfidenceColor(
-                          review.confidence
-                        )}`}
-                      >
+                      <span className={`font-medium ${getConfidenceColor(review.confidence)}`}>
                         {(review.confidence * 100).toFixed(0)}%
                       </span>
                     ) : (
@@ -208,21 +182,13 @@ export default function InboxPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={
-                        statusColors[
-                          review.status as keyof typeof statusColors
-                        ]
-                      }
-                    >
+                    <Badge variant={statusColors[review.status as keyof typeof statusColors]}>
                       {review.status}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     {review.violations.length > 0 ? (
-                      <Badge variant="destructive">
-                        {review.violations.length}
-                      </Badge>
+                      <Badge variant="destructive">{review.violations.length}</Badge>
                     ) : (
                       <span className="text-muted-foreground text-xs">None</span>
                     )}

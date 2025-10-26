@@ -1,15 +1,15 @@
-import { Routes, Route } from "react-router";
-import { Github } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import UserButton from "@/components/auth0/user-button";
-import { ActiveLink } from "@/components/navbar";
+import { Routes, Route } from 'react-router';
+import { Github } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import UserButton from '@/components/auth0/user-button';
+import { ActiveLink } from '@/components/navbar';
 
-import ChatPage from "@/pages/ChatPage";
-import useAuth, { getLogoutUrl } from "@/lib/use-auth";
-import ClosePage from "@/pages/ClosePage";
-import DocumentsPage from "@/pages/DocumentsPage";
-import InboxPage from "@/pages/InboxPage";
-import ReviewPage from "@/pages/ReviewPage";
+import ChatPage from '@/pages/ChatPage';
+import useAuth, { getLogoutUrl } from '@/lib/use-auth';
+import ClosePage from '@/pages/ClosePage';
+import DocumentsPage from '@/pages/DocumentsPage';
+import InboxPage from '@/pages/InboxPage';
+import ReviewPage from '@/pages/ReviewPage';
 
 export default function Layout() {
   const { user } = useAuth();
@@ -46,10 +46,7 @@ export default function Layout() {
             </div>
           )}
           <Button asChild variant="header" size="default">
-            <a
-              href="https://github.com/auth0-samples/auth0-assistant0-python"
-              target="_blank"
-            >
+            <a href="https://github.com/auth0-samples/auth0-assistant0-python" target="_blank">
               <Github className="size-3" />
               <span>Open in GitHub</span>
             </a>

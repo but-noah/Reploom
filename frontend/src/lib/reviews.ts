@@ -1,4 +1,4 @@
-import { apiClient } from "./api-client";
+import { apiClient } from './api-client';
 
 export interface DraftReview {
   id: string;
@@ -9,7 +9,7 @@ export interface DraftReview {
   intent: string | null;
   confidence: number | null;
   violations: string[];
-  status: "pending" | "approved" | "rejected" | "editing";
+  status: 'pending' | 'approved' | 'rejected' | 'editing';
   feedback: string | null;
   edit_notes: string | null;
   draft_version: number;
@@ -39,10 +39,8 @@ export interface ReviewActionRequest {
   feedback?: string;
 }
 
-export async function createReview(
-  data: CreateReviewRequest
-): Promise<DraftReview> {
-  const response = await apiClient.post("/api/agents/reploom/reviews", data);
+export async function createReview(data: CreateReviewRequest): Promise<DraftReview> {
+  const response = await apiClient.post('/api/agents/reploom/reviews', data);
   return response.data;
 }
 
@@ -50,16 +48,14 @@ export async function listReviews(params?: {
   status?: string;
   intent?: string;
 }): Promise<DraftReview[]> {
-  const response = await apiClient.get("/api/agents/reploom/reviews", {
+  const response = await apiClient.get('/api/agents/reploom/reviews', {
     params,
   });
   return response.data;
 }
 
 export async function getReview(reviewId: string): Promise<DraftReview> {
-  const response = await apiClient.get(
-    `/api/agents/reploom/reviews/${reviewId}`
-  );
+  const response = await apiClient.get(`/api/agents/reploom/reviews/${reviewId}`);
   return response.data;
 }
 
@@ -108,6 +104,6 @@ export async function runDraft(data: {
   thread_id: string;
   run_id: string;
 }> {
-  const response = await apiClient.post("/api/agents/reploom/run-draft", data);
+  const response = await apiClient.post('/api/agents/reploom/run-draft', data);
   return response.data;
 }

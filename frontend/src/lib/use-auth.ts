@@ -1,11 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "./api-client";
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from './api-client';
 
 export default function useAuth() {
   const { data: user, isLoading } = useQuery({
-    queryKey: ["user"],
+    queryKey: ['user'],
     queryFn: async () => {
-      return (await apiClient.get("/api/auth/profile")).data?.user;
+      return (await apiClient.get('/api/auth/profile')).data?.user;
     },
   });
 

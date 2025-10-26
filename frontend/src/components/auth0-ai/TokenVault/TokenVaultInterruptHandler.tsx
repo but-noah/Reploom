@@ -1,7 +1,7 @@
-import { TokenVaultInterrupt } from "@auth0/ai/interrupts";
-import type { Interrupt } from "@langchain/langgraph-sdk";
+import { TokenVaultInterrupt } from '@auth0/ai/interrupts';
+import type { Interrupt } from '@langchain/langgraph-sdk';
 
-import { TokenVaultConsent } from "@/components/auth0-ai/TokenVault";
+import { TokenVaultConsent } from '@/components/auth0-ai/TokenVault';
 
 interface TokenVaultInterruptHandlerProps {
   interrupt: Interrupt | undefined | null;
@@ -17,24 +17,21 @@ export function TokenVaultInterruptHandler({
   onFinish,
   auth,
 }: TokenVaultInterruptHandlerProps) {
-  if (
-    !interrupt ||
-    !TokenVaultInterrupt.isInterrupt(interrupt.value)
-  ) {
+  if (!interrupt || !TokenVaultInterrupt.isInterrupt(interrupt.value)) {
     return null;
   }
 
   return (
-    <div key={interrupt.ns?.join("")} className="whitespace-pre-wrap">
+    <div key={interrupt.ns?.join('')} className="whitespace-pre-wrap">
       <TokenVaultConsent
         mode="popup"
         interrupt={interrupt.value}
         onFinish={onFinish}
         auth={auth}
         connectWidget={{
-          title: "Authorization Required.",
+          title: 'Authorization Required.',
           description: interrupt.value.message,
-          action: { label: "Authorize" },
+          action: { label: 'Authorize' },
         }}
       />
     </div>
