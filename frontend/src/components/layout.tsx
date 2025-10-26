@@ -8,6 +8,8 @@ import ChatPage from "@/pages/ChatPage";
 import useAuth, { getLogoutUrl } from "@/lib/use-auth";
 import ClosePage from "@/pages/ClosePage";
 import DocumentsPage from "@/pages/DocumentsPage";
+import InboxPage from "@/pages/InboxPage";
+import ReviewPage from "@/pages/ReviewPage";
 
 export default function Layout() {
   const { user } = useAuth();
@@ -34,6 +36,7 @@ export default function Layout() {
           <nav className="flex gap-1 flex-col md:flex-row">
             <ActiveLink href="/">Chat</ActiveLink>
             <ActiveLink href="/documents">Documents</ActiveLink>
+            <ActiveLink href="/inbox">Review Inbox</ActiveLink>
           </nav>
         </div>
         <div className="flex justify-center">
@@ -59,6 +62,8 @@ export default function Layout() {
             <Route path="/" element={<ChatPage />} />
             <Route path="/close" element={<ClosePage />} />
             <Route path="/documents" element={<DocumentsPage />} />
+            <Route path="/inbox" element={<InboxPage />} />
+            <Route path="/review/:id" element={<ReviewPage />} />
           </Routes>
         </div>
       </div>
