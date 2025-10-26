@@ -50,6 +50,15 @@ class Settings(BaseSettings):
         """Parse Gmail scopes from space-separated string to list."""
         return [scope.strip() for scope in self.GMAIL_SCOPES.split() if scope.strip()]
 
+    # Google Calendar API Configuration
+    CALENDAR_SCOPES: str = "https://www.googleapis.com/auth/calendar.readonly"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def CALENDAR_SCOPES_LIST(self) -> list[str]:
+        """Parse Calendar scopes from space-separated string to list."""
+        return [scope.strip() for scope in self.CALENDAR_SCOPES.split() if scope.strip()]
+
     # OpenAI
     OPENAI_API_KEY: str
 

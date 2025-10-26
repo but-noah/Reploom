@@ -29,6 +29,7 @@ from app.integrations.gmail_service import (
     InvalidMessageError,
     GmailServiceError,
 )
+from app.integrations.calendar_service import get_availability_slots
 from app.models.gmail_drafts import GmailDraft
 
 logger = logging.getLogger(__name__)
@@ -57,6 +58,8 @@ class CreateDraftRequest(BaseModel):
     reply_to_msg_id: str
     subject: str | None = None
     body_html: str
+    include_availability: bool = False
+    availability_timezone: str = "UTC"
 
 
 class DraftResponse(BaseModel):
@@ -426,8 +429,79 @@ async def create_thread_reply_draft(
             scopes=settings.GMAIL_SCOPES_LIST
         )
 
+        # Optionally fetch calendar availability and append to body
+        final_body_html = request.body_html
+        if request.include_availability:
+            try:
+                # Try to get calendar access token (may fail if user hasn't granted scope)
+                calendar_token = await get_google_access_token(
+                    user_sub=user_sub,
+                    scopes=settings.CALENDAR_SCOPES_LIST
+                )
+
+                # Fetch availability slots
+                slots = await get_availability_slots(
+                    user_token=calendar_token,
+                    window_days=7,
+                    timezone=request.availability_timezone,
+                    slot_duration_minutes=30,
+                    working_hours_start=9,
+                    working_hours_end=17,
+                    max_slots=3
+                )
+
+                # Format availability paragraph if slots are available
+                if slots:
+                    from datetime import datetime
+                    availability_lines = ["<p><strong>Proposed meeting times:</strong></p>", "<ul>"]
+                    for slot in slots[:3]:  # Limit to 3 slots
+                        try:
+                            start_dt = datetime.fromisoformat(slot["start"])
+                            end_dt = datetime.fromisoformat(slot["end"])
+                            # Format as "Monday, Jan 15 at 2:00 PM - 2:30 PM"
+                            formatted = f"{start_dt.strftime('%A, %b %d at %I:%M %p')} - {end_dt.strftime('%I:%M %p')}"
+                            availability_lines.append(f"<li>{formatted}</li>")
+                        except Exception as e:
+                            logger.warning(f"Failed to format slot: {e}")
+                            continue
+
+                    availability_lines.append("</ul>")
+                    availability_lines.append(f"<p><em>Times shown in {request.availability_timezone} timezone</em></p>")
+
+                    # Append availability to body
+                    final_body_html = request.body_html + "\n\n" + "\n".join(availability_lines)
+
+                    logger.info(
+                        "Added availability to draft",
+                        extra={
+                            "user_sub": user_sub[:8] + "...",
+                            "slots_count": len(slots),
+                            "timezone": request.availability_timezone
+                        }
+                    )
+
+            except (InsufficientScopeError, InvalidGrantError) as e:
+                # Silently omit availability if calendar permissions not granted
+                logger.info(
+                    "Calendar availability omitted - insufficient permissions",
+                    extra={
+                        "user_sub": user_sub[:8] + "...",
+                        "error": str(e)
+                    }
+                )
+            except Exception as e:
+                # Silently omit availability on any error (as per constraints)
+                logger.warning(
+                    "Calendar availability omitted - error fetching slots",
+                    extra={
+                        "user_sub": user_sub[:8] + "...",
+                        "error": str(e),
+                        "error_type": type(e).__name__
+                    }
+                )
+
         # Check for existing draft (idempotency)
-        content_hash = hashlib.sha256(request.body_html.encode('utf-8')).hexdigest()
+        content_hash = hashlib.sha256(final_body_html.encode('utf-8')).hexdigest()
 
         with Session(engine) as db_session:
             # Query for existing draft with same context
@@ -463,7 +537,7 @@ async def create_thread_reply_draft(
                 thread_id=thread_id,
                 reply_to_msg_id=request.reply_to_msg_id,
                 subject=request.subject,
-                html_body=request.body_html
+                html_body=final_body_html
             )
 
             # Extract draft details
