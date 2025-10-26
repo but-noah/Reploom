@@ -1,9 +1,9 @@
 """Database models for draft review and approval workflow."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
-from sqlmodel import Field, SQLModel, Column, JSON
+from sqlmodel import Field, SQLModel, Column, JSON, String
 
 
 class DraftReview(SQLModel, table=True):
@@ -46,8 +46,8 @@ class DraftReview(SQLModel, table=True):
     violations: list[str] = Field(default=[], sa_column=Column(JSON))
 
     # Review state
-    status: Literal["pending", "approved", "rejected", "editing"] = Field(
-        default="pending", index=True
+    status: str = Field(
+        default="pending", sa_column=Column(String, index=True)
     )
 
     # User feedback
@@ -55,8 +55,8 @@ class DraftReview(SQLModel, table=True):
     edit_notes: str | None = None
 
     # Timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     reviewed_at: datetime | None = None
 
     class Config:
