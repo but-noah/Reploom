@@ -1,15 +1,10 @@
-import { useState } from "react";
-import { useParams, useNavigate } from "react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  getReview,
-  approveReview,
-  rejectReview,
-  requestEdit,
-} from "../lib/reviews";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
-import { Textarea } from "../components/ui/textarea";
+import { useState } from 'react';
+import { useParams, useNavigate } from 'react-router';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getReview, approveReview, rejectReview, requestEdit } from '../lib/reviews';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Textarea } from '../components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -17,16 +12,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "../components/ui/dialog";
-import { toast } from "sonner";
-import {
-  ArrowLeft,
-  Check,
-  X,
-  Edit3,
-  AlertTriangle,
-  TrendingUp,
-} from "lucide-react";
+} from '../components/ui/dialog';
+import { toast } from 'sonner';
+import { ArrowLeft, Check, X, Edit3, AlertTriangle, TrendingUp } from 'lucide-react';
 
 export default function ReviewPage() {
   const { id } = useParams<{ id: string }>();
@@ -34,13 +22,17 @@ export default function ReviewPage() {
   const queryClient = useQueryClient();
 
   const [isEditing, setIsEditing] = useState(false);
-  const [editedHtml, setEditedHtml] = useState("");
-  const [editNotes, setEditNotes] = useState("");
+  const [editedHtml, setEditedHtml] = useState('');
+  const [editNotes, setEditNotes] = useState('');
   const [showRejectDialog, setShowRejectDialog] = useState(false);
-  const [rejectFeedback, setRejectFeedback] = useState("");
+  const [rejectFeedback, setRejectFeedback] = useState('');
 
-  const { data: review, isLoading, error } = useQuery({
-    queryKey: ["review", id],
+  const {
+    data: review,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['review', id],
     queryFn: () => getReview(id!),
     enabled: !!id,
   });
@@ -48,13 +40,13 @@ export default function ReviewPage() {
   const approveMutation = useMutation({
     mutationFn: () => approveReview(id!),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["review", id] });
-      queryClient.invalidateQueries({ queryKey: ["reviews"] });
-      toast.success("Draft approved successfully");
-      navigate("/inbox");
+      queryClient.invalidateQueries({ queryKey: ['review', id] });
+      queryClient.invalidateQueries({ queryKey: ['reviews'] });
+      toast.success('Draft approved successfully');
+      navigate('/inbox');
     },
     onError: (error: Error) => {
-      toast.error("Failed to approve draft", {
+      toast.error('Failed to approve draft', {
         description: error.message,
       });
     },
@@ -63,31 +55,30 @@ export default function ReviewPage() {
   const rejectMutation = useMutation({
     mutationFn: (feedback: string) => rejectReview(id!, { feedback }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["review", id] });
-      queryClient.invalidateQueries({ queryKey: ["reviews"] });
-      toast.success("Draft rejected");
+      queryClient.invalidateQueries({ queryKey: ['review', id] });
+      queryClient.invalidateQueries({ queryKey: ['reviews'] });
+      toast.success('Draft rejected');
       setShowRejectDialog(false);
-      navigate("/inbox");
+      navigate('/inbox');
     },
     onError: (error: Error) => {
-      toast.error("Failed to reject draft", {
+      toast.error('Failed to reject draft', {
         description: error.message,
       });
     },
   });
 
   const editMutation = useMutation({
-    mutationFn: (data: { draft_html: string; edit_notes?: string }) =>
-      requestEdit(id!, data),
+    mutationFn: (data: { draft_html: string; edit_notes?: string }) => requestEdit(id!, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["review", id] });
-      queryClient.invalidateQueries({ queryKey: ["reviews"] });
-      toast.success("Draft updated successfully");
+      queryClient.invalidateQueries({ queryKey: ['review', id] });
+      queryClient.invalidateQueries({ queryKey: ['reviews'] });
+      toast.success('Draft updated successfully');
       setIsEditing(false);
-      setEditNotes("");
+      setEditNotes('');
     },
     onError: (error: Error) => {
-      toast.error("Failed to update draft", {
+      toast.error('Failed to update draft', {
         description: error.message,
       });
     },
@@ -109,8 +100,8 @@ export default function ReviewPage() {
 
   const handleCancelEdit = () => {
     setIsEditing(false);
-    setEditedHtml("");
-    setEditNotes("");
+    setEditedHtml('');
+    setEditNotes('');
   };
 
   const handleReject = () => {
@@ -120,9 +111,7 @@ export default function ReviewPage() {
   if (isLoading) {
     return (
       <div className="container mx-auto py-8 px-4">
-        <div className="text-center py-12 text-muted-foreground">
-          Loading review...
-        </div>
+        <div className="text-center py-12 text-muted-foreground">Loading review...</div>
       </div>
     );
   }
@@ -140,9 +129,7 @@ export default function ReviewPage() {
   if (!review) {
     return (
       <div className="container mx-auto py-8 px-4">
-        <div className="text-center py-12 text-muted-foreground">
-          Review not found
-        </div>
+        <div className="text-center py-12 text-muted-foreground">Review not found</div>
       </div>
     );
   }
@@ -150,7 +137,7 @@ export default function ReviewPage() {
   return (
     <div className="container mx-auto py-8 px-4 max-w-7xl">
       <div className="mb-6">
-        <Button variant="ghost" onClick={() => navigate("/inbox")}>
+        <Button variant="ghost" onClick={() => navigate('/inbox')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Inbox
         </Button>
@@ -160,19 +147,17 @@ export default function ReviewPage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">Review Draft</h1>
-            <p className="text-muted-foreground">
-              Thread: {review.thread_id}
-            </p>
+            <p className="text-muted-foreground">Thread: {review.thread_id}</p>
           </div>
           <div className="flex gap-2">
             <Badge variant="secondary">Version {review.draft_version}</Badge>
             <Badge
               variant={
-                review.status === "approved"
-                  ? "success"
-                  : review.status === "rejected"
-                  ? "destructive"
-                  : "warning"
+                review.status === 'approved'
+                  ? 'success'
+                  : review.status === 'rejected'
+                    ? 'destructive'
+                    : 'warning'
               }
             >
               {review.status}
@@ -185,11 +170,7 @@ export default function ReviewPage() {
         <div className="p-4 border rounded-lg">
           <div className="text-sm text-muted-foreground mb-1">Intent</div>
           <div className="font-medium">
-            {review.intent ? (
-              <Badge variant="info">{review.intent}</Badge>
-            ) : (
-              "N/A"
-            )}
+            {review.intent ? <Badge variant="info">{review.intent}</Badge> : 'N/A'}
           </div>
         </div>
         <div className="p-4 border rounded-lg">
@@ -201,7 +182,7 @@ export default function ReviewPage() {
                 {(review.confidence * 100).toFixed(0)}%
               </>
             ) : (
-              "N/A"
+              'N/A'
             )}
           </div>
         </div>
@@ -241,8 +222,7 @@ export default function ReviewPage() {
           <h2 className="text-xl font-semibold mb-4">Original Message</h2>
           <div className="prose prose-sm max-w-none">
             <p className="text-muted-foreground">
-              {review.original_message_excerpt ||
-                review.original_message_summary}
+              {review.original_message_excerpt || review.original_message_summary}
             </p>
           </div>
         </div>
@@ -250,7 +230,7 @@ export default function ReviewPage() {
         <div className="border rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Draft Response</h2>
-            {!isEditing && review.status === "pending" && (
+            {!isEditing && review.status === 'pending' && (
               <Button variant="outline" size="sm" onClick={handleStartEdit}>
                 <Edit3 className="mr-2 h-4 w-4" />
                 Edit
@@ -262,22 +242,19 @@ export default function ReviewPage() {
             <div className="space-y-4">
               <Textarea
                 value={editedHtml}
-                onChange={(e) => setEditedHtml(e.target.value)}
+                onChange={e => setEditedHtml(e.target.value)}
                 className="min-h-[300px] font-mono text-sm"
                 placeholder="Edit draft HTML..."
               />
               <Textarea
                 value={editNotes}
-                onChange={(e) => setEditNotes(e.target.value)}
+                onChange={e => setEditNotes(e.target.value)}
                 className="min-h-[100px]"
                 placeholder="Add notes about your changes..."
               />
               <div className="flex gap-2">
-                <Button
-                  onClick={handleSaveEdit}
-                  disabled={editMutation.isPending}
-                >
-                  {editMutation.isPending ? "Saving..." : "Save Changes"}
+                <Button onClick={handleSaveEdit} disabled={editMutation.isPending}>
+                  {editMutation.isPending ? 'Saving...' : 'Save Changes'}
                 </Button>
                 <Button
                   variant="outline"
@@ -304,7 +281,7 @@ export default function ReviewPage() {
         </div>
       )}
 
-      {review.status === "pending" && !isEditing && (
+      {review.status === 'pending' && !isEditing && (
         <div className="flex gap-4">
           <Button
             onClick={() => approveMutation.mutate()}
@@ -312,7 +289,7 @@ export default function ReviewPage() {
             className="flex-1"
           >
             <Check className="mr-2 h-4 w-4" />
-            {approveMutation.isPending ? "Approving..." : "Approve"}
+            {approveMutation.isPending ? 'Approving...' : 'Approve'}
           </Button>
           <Button
             variant="destructive"
@@ -326,7 +303,7 @@ export default function ReviewPage() {
         </div>
       )}
 
-      {review.status === "approved" && (
+      {review.status === 'approved' && (
         <div className="p-4 border border-green-500 rounded-lg bg-green-50 dark:bg-green-950">
           <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
             <Check className="h-5 w-5" />
@@ -338,16 +315,14 @@ export default function ReviewPage() {
         </div>
       )}
 
-      {review.status === "rejected" && (
+      {review.status === 'rejected' && (
         <div className="p-4 border border-destructive rounded-lg bg-destructive/10">
           <div className="flex items-center gap-2 text-destructive">
             <X className="h-5 w-5" />
             <span className="font-semibold">Draft Rejected</span>
           </div>
           {review.feedback && (
-            <p className="text-sm text-muted-foreground mt-2">
-              Feedback: {review.feedback}
-            </p>
+            <p className="text-sm text-muted-foreground mt-2">Feedback: {review.feedback}</p>
           )}
         </div>
       )}
@@ -362,15 +337,12 @@ export default function ReviewPage() {
           </DialogHeader>
           <Textarea
             value={rejectFeedback}
-            onChange={(e) => setRejectFeedback(e.target.value)}
+            onChange={e => setRejectFeedback(e.target.value)}
             placeholder="Enter your feedback..."
             className="min-h-[100px]"
           />
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowRejectDialog(false)}
-            >
+            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
               Cancel
             </Button>
             <Button
@@ -378,7 +350,7 @@ export default function ReviewPage() {
               onClick={handleReject}
               disabled={rejectMutation.isPending}
             >
-              {rejectMutation.isPending ? "Rejecting..." : "Reject Draft"}
+              {rejectMutation.isPending ? 'Rejecting...' : 'Reject Draft'}
             </Button>
           </DialogFooter>
         </DialogContent>

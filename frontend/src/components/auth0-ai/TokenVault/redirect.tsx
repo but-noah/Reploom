@@ -1,15 +1,12 @@
-"use client";
+'use client';
 
-import { PromptUserContainer } from "../util/prompt-user-container";
-import type { TokenVaultAuthProps } from "./TokenVaultAuthProps";
+import { PromptUserContainer } from '../util/prompt-user-container';
+import type { TokenVaultAuthProps } from './TokenVaultAuthProps';
 
 export function TokenVaultConsentRedirect({
   interrupt: { requiredScopes, connection },
   connectWidget: { icon, title, description, action, containerClassName },
-  auth: {
-    authorizePath = "/auth/login",
-    returnTo = window.location.pathname,
-  } = {},
+  auth: { authorizePath = '/auth/login', returnTo = window.location.pathname } = {},
 }: TokenVaultAuthProps) {
   return (
     <PromptUserContainer
@@ -18,12 +15,12 @@ export function TokenVaultConsentRedirect({
       icon={icon}
       containerClassName={containerClassName}
       action={{
-        label: action?.label ?? "Connect",
+        label: action?.label ?? 'Connect',
         onClick: () => {
           const search = new URLSearchParams({
             returnTo,
             connection,
-            access_type: "offline",
+            access_type: 'offline',
             connection_scope: requiredScopes.join(),
           });
 

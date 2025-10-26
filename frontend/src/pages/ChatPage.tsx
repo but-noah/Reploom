@@ -1,8 +1,8 @@
-import { Button } from "@/components/ui/button";
-import useAuth, { getLoginUrl, getSignupUrl } from "@/lib/use-auth";
-import { LogIn, UserPlus } from "lucide-react";
-import GuideInfoBox from "@/components/guide/guide-info-box";
-import { ChatWindow } from "@/components/chat-window";
+import { Button } from '@/components/ui/button';
+import useAuth, { getLoginUrl, getSignupUrl } from '@/lib/use-auth';
+import { LogIn, UserPlus } from 'lucide-react';
+import GuideInfoBox from '@/components/guide/guide-info-box';
+import { ChatWindow } from '@/components/chat-window';
 
 export default function ChatPage() {
   const { user, isLoading } = useAuth();
@@ -39,37 +39,28 @@ export default function ChatPage() {
         <li className="text-l">
           🤝
           <span className="ml-2">
-            This template showcases a simple chatbot using{" "}
-            <a
-              className="text-blue-500"
-              href="https://www.langchain.com/langgraph"
-              target="_blank"
-            >
+            This template showcases a simple chatbot using{' '}
+            <a className="text-blue-500" href="https://www.langchain.com/langgraph" target="_blank">
               LangGraph
-            </a>{" "}
-            in a{" "}
-            <a
-              className="text-blue-500"
-              href="https://fastapi.tiangolo.com/"
-              target="_blank"
-            >
+            </a>{' '}
+            in a{' '}
+            <a className="text-blue-500" href="https://fastapi.tiangolo.com/" target="_blank">
               FastAPI
-            </a>{" "}
+            </a>{' '}
             project.
           </span>
         </li>
         <li className="hidden text-l md:block">
           💻
           <span className="ml-2">
-            You can find the prompt and model logic for this use-case in{" "}
+            You can find the prompt and model logic for this use-case in{' '}
             <code>backend/app/api/routes/chat.py</code>.
           </span>
         </li>
         <li className="hidden text-l md:block">
           🎨
           <span className="ml-2">
-            The main frontend logic is found in{" "}
-            <code>/frontend/src/pages/ChatPage.tsx</code>.
+            The main frontend logic is found in <code>/frontend/src/pages/ChatPage.tsx</code>.
           </span>
         </li>
         <li className="text-l">

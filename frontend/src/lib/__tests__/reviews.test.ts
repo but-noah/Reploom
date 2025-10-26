@@ -83,10 +83,9 @@ describe('Review API Functions', () => {
 
       const result = await listReviews();
 
-      expect(apiClient.get).toHaveBeenCalledWith(
-        '/api/agents/reploom/reviews',
-        { params: undefined }
-      );
+      expect(apiClient.get).toHaveBeenCalledWith('/api/agents/reploom/reviews', {
+        params: undefined,
+      });
       expect(result).toEqual(mockReviews);
     });
 
@@ -103,10 +102,9 @@ describe('Review API Functions', () => {
 
       const result = await listReviews({ status: 'pending' });
 
-      expect(apiClient.get).toHaveBeenCalledWith(
-        '/api/agents/reploom/reviews',
-        { params: { status: 'pending' } }
-      );
+      expect(apiClient.get).toHaveBeenCalledWith('/api/agents/reploom/reviews', {
+        params: { status: 'pending' },
+      });
       expect(result).toEqual(mockReviews);
     });
   });
@@ -123,9 +121,7 @@ describe('Review API Functions', () => {
 
       const result = await getReview('123');
 
-      expect(apiClient.get).toHaveBeenCalledWith(
-        '/api/agents/reploom/reviews/123'
-      );
+      expect(apiClient.get).toHaveBeenCalledWith('/api/agents/reploom/reviews/123');
       expect(result).toEqual(mockReview);
     });
   });
@@ -141,10 +137,7 @@ describe('Review API Functions', () => {
 
       const result = await approveReview('123');
 
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/api/agents/reploom/reviews/123/approve',
-        {}
-      );
+      expect(apiClient.post).toHaveBeenCalledWith('/api/agents/reploom/reviews/123/approve', {});
       expect(result).toEqual(mockReview);
     });
 
@@ -159,10 +152,9 @@ describe('Review API Functions', () => {
 
       const result = await approveReview('123', { feedback: 'Looks good!' });
 
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/api/agents/reploom/reviews/123/approve',
-        { feedback: 'Looks good!' }
-      );
+      expect(apiClient.post).toHaveBeenCalledWith('/api/agents/reploom/reviews/123/approve', {
+        feedback: 'Looks good!',
+      });
       expect(result).toEqual(mockReview);
     });
   });
@@ -179,10 +171,9 @@ describe('Review API Functions', () => {
 
       const result = await rejectReview('123', { feedback: 'Not appropriate' });
 
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/api/agents/reploom/reviews/123/reject',
-        { feedback: 'Not appropriate' }
-      );
+      expect(apiClient.post).toHaveBeenCalledWith('/api/agents/reploom/reviews/123/reject', {
+        feedback: 'Not appropriate',
+      });
       expect(result).toEqual(mockReview);
     });
   });
@@ -203,13 +194,10 @@ describe('Review API Functions', () => {
         edit_notes: 'Fixed typo',
       });
 
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/api/agents/reploom/reviews/123/request-edit',
-        {
-          draft_html: '<p>Updated draft</p>',
-          edit_notes: 'Fixed typo',
-        }
-      );
+      expect(apiClient.post).toHaveBeenCalledWith('/api/agents/reploom/reviews/123/request-edit', {
+        draft_html: '<p>Updated draft</p>',
+        edit_notes: 'Fixed typo',
+      });
       expect(result).toEqual(mockReview);
     });
   });

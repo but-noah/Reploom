@@ -1,5 +1,5 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,7 +7,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 
 interface KeyValueMap {
   [key: string]: any;
@@ -53,7 +53,7 @@ function getAvatarFallback(user: KeyValueMap) {
 export default function UserButton({
   user,
   children,
-  logoutUrl = "/api/auth/logout",
+  logoutUrl = '/api/auth/logout',
 }: {
   user: KeyValueMap;
   children?: React.ReactNode;
@@ -83,9 +83,7 @@ export default function UserButton({
             </Avatar>
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium leading-none">{name}</p>
-              <p className="text-xs leading-none text-muted-foreground">
-                {email}
-              </p>
+              <p className="text-xs leading-none text-muted-foreground">{email}</p>
             </div>
           </div>
         </DropdownMenuLabel>

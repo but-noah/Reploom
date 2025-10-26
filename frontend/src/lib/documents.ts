@@ -1,4 +1,4 @@
-import { apiClient } from "./api-client";
+import { apiClient } from './api-client';
 
 export type Document = {
   id: string;
@@ -15,10 +15,10 @@ export type Document = {
  * Fetches a list of documents for a given user.
  */
 export async function getDocumentsForUser(): Promise<Document[]> {
-  const response = await apiClient.get("/api/documents");
+  const response = await apiClient.get('/api/documents');
 
   if (response.status !== 200) {
-    throw new Error("Failed to fetch documents");
+    throw new Error('Failed to fetch documents');
   }
 
   return response.data.map((doc: any) => ({
@@ -44,16 +44,13 @@ export async function getDocumentContent(documentId: string): Promise<string> {
 /**
  * Shares a document with a list of email addresses.
  */
-export async function shareDocument(
-  documentId: string,
-  emailAddresses: string[],
-): Promise<void> {
+export async function shareDocument(documentId: string, emailAddresses: string[]): Promise<void> {
   const response = await apiClient.post(`/api/documents/${documentId}/share`, {
     email_addresses: emailAddresses,
   });
 
   if (response.status !== 200) {
-    throw new Error("Failed to share document");
+    throw new Error('Failed to share document');
   }
 }
 
@@ -64,6 +61,6 @@ export async function deleteDocument(documentId: string): Promise<void> {
   const response = await apiClient.delete(`/api/documents/${documentId}`);
 
   if (response.status !== 200) {
-    throw new Error("Failed to delete document");
+    throw new Error('Failed to delete document');
   }
 }

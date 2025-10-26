@@ -1,12 +1,12 @@
-import { format } from "date-fns";
-import { type ReactNode } from "react";
-import { LogIn, UserPlus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import useAuth, { getLoginUrl, getSignupUrl } from "@/lib/use-auth";
-import DocumentUploadForm from "@/components/document-upload-form";
-import DocumentItemActions from "@/components/document-item-actions";
-import { getDocumentsForUser } from "@/lib/documents";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from 'date-fns';
+import { type ReactNode } from 'react';
+import { LogIn, UserPlus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import useAuth, { getLoginUrl, getSignupUrl } from '@/lib/use-auth';
+import DocumentUploadForm from '@/components/document-upload-form';
+import DocumentItemActions from '@/components/document-item-actions';
+import { getDocumentsForUser } from '@/lib/documents';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export default function DocumentsPage() {
   const queryClient = useQueryClient();
@@ -16,7 +16,7 @@ export default function DocumentsPage() {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["documents"],
+    queryKey: ['documents'],
     queryFn: async () => {
       return await getDocumentsForUser();
     },
@@ -57,18 +57,14 @@ export default function DocumentsPage() {
     if (!sharedWith || sharedWith.length === 0) {
       return <span className="text-sm text-muted-foreground">Not shared</span>;
     }
-    if (sharedWith.includes(user?.email!)) {
+    if (user?.email && sharedWith.includes(user.email)) {
       return <span className="text-sm text-green-500">Shared with you</span>;
     }
-    return (
-      <span className="text-sm text-blue-500">
-        Shared with: {sharedWith.join(", ")}
-      </span>
-    );
+    return <span className="text-sm text-blue-500">Shared with: {sharedWith.join(', ')}</span>;
   }
 
   function handleDocumentActionComplete() {
-    queryClient.invalidateQueries({ queryKey: ["documents"] });
+    queryClient.invalidateQueries({ queryKey: ['documents'] });
   }
 
   return (
@@ -86,36 +82,29 @@ export default function DocumentsPage() {
         {documents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Document cards will be rendered here */}
-            {documents.map((doc) => (
+            {documents.map(doc => (
               <div
                 key={doc.id}
                 className="p-4 border rounded-lg shadow-sm bg-card text-card-foreground flex justify-between items-center"
               >
                 <div className="mb-3 sm:mb-0">
                   <h3 className="font-semibold text-lg mb-1">{doc.fileName}</h3>
+                  <p className="text-sm text-muted-foreground">Type: {doc.fileType}</p>
                   <p className="text-sm text-muted-foreground">
-                    Type: {doc.fileType}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Uploaded:{" "}
-                    {doc.createdAt ? format(doc.createdAt, "PPP p") : "N/A"}
+                    Uploaded: {doc.createdAt ? format(doc.createdAt, 'PPP p') : 'N/A'}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {getSharingStatus(doc.sharedWith)}
                   </p>
                 </div>
-                <DocumentItemActions
-                  doc={doc}
-                  onActionComplete={handleDocumentActionComplete}
-                />
+                <DocumentItemActions doc={doc} onActionComplete={handleDocumentActionComplete} />
               </div>
             ))}
           </div>
         ) : (
           <div className="p-6 border rounded-lg shadow-sm bg-background text-center">
             <p className="text-muted-foreground">
-              You haven&apos;t uploaded any documents yet. Use the form above to
-              get started.
+              You haven&apos;t uploaded any documents yet. Use the form above to get started.
             </p>
           </div>
         )}

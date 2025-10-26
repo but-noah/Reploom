@@ -1,17 +1,17 @@
-import { useState } from "react";
-import type { FormEvent, ReactNode } from "react";
-import { toast } from "sonner";
-import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
-import { ArrowDown, ArrowUpIcon, LoaderCircle } from "lucide-react";
-import { useQueryState } from "nuqs";
-import { useStream } from "@langchain/langgraph-sdk/react";
-import { type Message } from "@langchain/langgraph-sdk";
+import { useState } from 'react';
+import type { FormEvent, ReactNode } from 'react';
+import { toast } from 'sonner';
+import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
+import { ArrowDown, ArrowUpIcon, LoaderCircle } from 'lucide-react';
+import { useQueryState } from 'nuqs';
+import { useStream } from '@langchain/langgraph-sdk/react';
+import { type Message } from '@langchain/langgraph-sdk';
 
-import { ChatMessageBubble } from "@/components/chat-message-bubble";
-import { TokenVaultInterruptHandler } from "@/components/auth0-ai/TokenVault/TokenVaultInterruptHandler";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { getLoginUrl } from "@/lib/use-auth";
+import { ChatMessageBubble } from '@/components/chat-message-bubble';
+import { TokenVaultInterruptHandler } from '@/components/auth0-ai/TokenVault/TokenVaultInterruptHandler';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { getLoginUrl } from '@/lib/use-auth';
 
 function ChatMessages(props: {
   messages: Message[];
@@ -21,9 +21,14 @@ function ChatMessages(props: {
 }) {
   return (
     <div className="flex flex-col max-w-[768px] mx-auto pb-12 w-full">
-      {props.messages.map((m, i) => {
+      {props.messages.map(m => {
         return (
-          <ChatMessageBubble key={m.id} message={m} aiEmoji={props.aiEmoji} allMessages={props.messages} />
+          <ChatMessageBubble
+            key={m.id}
+            message={m}
+            aiEmoji={props.aiEmoji}
+            allMessages={props.messages}
+          />
         );
       })}
     </div>
@@ -35,11 +40,7 @@ function ScrollToBottom(props: { className?: string }) {
 
   if (isAtBottom) return null;
   return (
-    <Button
-      variant="outline"
-      className={props.className}
-      onClick={() => scrollToBottom()}
-    >
+    <Button variant="outline" className={props.className} onClick={() => scrollToBottom()}>
       <ArrowDown className="w-4 h-4" />
       <span>Scroll to bottom</span>
     </Button>
@@ -57,12 +58,12 @@ function ChatInput(props: {
 }) {
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={e => {
         e.stopPropagation();
         e.preventDefault();
         props.onSubmit(e);
       }}
-      className={cn("flex w-full flex-col", props.className)}
+      className={cn('flex w-full flex-col', props.className)}
     >
       <div className="border border-input bg-background rounded-lg flex flex-col gap-2 max-w-[768px] w-full mx-auto">
         <input
@@ -81,11 +82,7 @@ function ChatInput(props: {
             type="submit"
             disabled={props.loading}
           >
-            {props.loading ? (
-              <LoaderCircle className="animate-spin" />
-            ) : (
-              <ArrowUpIcon size={14} />
-            )}
+            {props.loading ? <LoaderCircle className="animate-spin" /> : <ArrowUpIcon size={14} />}
           </Button>
         </div>
       </div>
@@ -105,8 +102,8 @@ function StickyToBottomContent(props: {
   return (
     <div
       ref={context.scrollRef}
-      style={{ width: "100%", height: "100%" }}
-      className={cn("grid grid-rows-[1fr,auto]", props.className)}
+      style={{ width: '100%', height: '100%' }}
+      className={cn('grid grid-rows-[1fr,auto]', props.className)}
     >
       <div ref={context.contentRef} className={props.contentClassName}>
         {props.content}
@@ -123,26 +120,26 @@ export function ChatWindow(props: {
   placeholder?: string;
   emoji?: string;
 }) {
-  const [threadId, setThreadId] = useQueryState("threadId");
-  const [input, setInput] = useState("");
+  const [threadId, setThreadId] = useQueryState('threadId');
+  const [input, setInput] = useState('');
 
-  const fetchWithCredentials = (url, options = {}) => {
+  const fetchWithCredentials = (url: string, options: RequestInit = {}) => {
     return fetch(url, {
       ...options,
-      credentials: "include",
+      credentials: 'include',
     });
   };
 
   const chat = useStream({
     apiUrl: `${import.meta.env.VITE_API_HOST}${props.endpoint}`,
-    assistantId: "agent",
+    assistantId: 'agent',
     threadId,
     callerOptions: {
       fetch: fetchWithCredentials,
     },
     onThreadId: setThreadId,
     onError: (e: any) => {
-      console.error("Error: ", e);
+      console.error('Error: ', e);
       toast.error(`Error while processing your request`, {
         description: e.message,
       });
@@ -157,17 +154,17 @@ export function ChatWindow(props: {
     e.preventDefault();
     if (isChatLoading()) return;
     chat.submit(
-      { messages: [{ type: "human", content: input }] },
+      { messages: [{ type: 'human', content: input }] },
       {
-        optimisticValues: (prev) => ({
+        optimisticValues: prev => ({
           messages: [
             ...((prev?.messages as []) ?? []),
-            { type: "human", content: input, id: "temp" },
+            { type: 'human', content: input, id: 'temp' },
           ],
         }),
-      },
+      }
     );
-    setInput("");
+    setInput('');
   }
 
   return (
@@ -190,10 +187,7 @@ export function ChatWindow(props: {
                   <TokenVaultInterruptHandler
                     auth={{
                       authorizePath: getLoginUrl(),
-                      returnTo: new URL(
-                        "/close",
-                        window.location.origin,
-                      ).toString(),
+                      returnTo: new URL('/close', window.location.origin).toString(),
                     }}
                     interrupt={{
                       ...chat.interrupt,
@@ -219,10 +213,10 @@ export function ChatWindow(props: {
             <ScrollToBottom className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4" />
             <ChatInput
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={e => setInput(e.target.value)}
               onSubmit={sendMessage}
               loading={isChatLoading()}
-              placeholder={props.placeholder ?? "What can I help you with?"}
+              placeholder={props.placeholder ?? 'What can I help you with?'}
             ></ChatInput>
           </div>
         }
