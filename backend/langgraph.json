@@ -1,7 +1,8 @@
 {
   "python_version": "3.13",
   "graphs": {
-    "agent": "./app/agents/assistant0.py:agent"
+    "agent": "./app/agents/assistant0.py:agent",
+    "reploom-crew": "./app/agents/reploom_crew.py:reploom_crew"
   },
   "env": ".env",
   "dependencies": ["./"]
