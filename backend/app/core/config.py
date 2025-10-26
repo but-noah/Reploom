@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     AUTH0_CLIENT_SECRET: str
     AUTH0_SECRET: str
 
+    # Auth0 Token Vault (for Gmail and other third-party APIs)
+    # These credentials are for the custom API client that performs token exchange
+    AUTH0_CUSTOM_API_CLIENT_ID: str = ""
+    AUTH0_CUSTOM_API_CLIENT_SECRET: str = ""
+    AUTH0_AUDIENCE: str = ""
+
     # Auth0 FGA
     FGA_STORE_ID: str
     FGA_CLIENT_ID: str
@@ -34,6 +40,15 @@ class Settings(BaseSettings):
     # Shop API
     SHOP_API_URL: str = ""
     SHOP_API_AUDIENCE: str = ""
+
+    # Gmail API Configuration
+    GMAIL_SCOPES: str = "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.compose"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def GMAIL_SCOPES_LIST(self) -> list[str]:
+        """Parse Gmail scopes from space-separated string to list."""
+        return [scope.strip() for scope in self.GMAIL_SCOPES.split() if scope.strip()]
 
     # OpenAI
     OPENAI_API_KEY: str
