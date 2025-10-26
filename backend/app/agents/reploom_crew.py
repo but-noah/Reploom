@@ -49,7 +49,8 @@ class DraftCrewState(TypedDict):
     violations: list[str]
 
     # Config (loaded from workspace settings)
-    tone_level: Literal["formal", "friendly", "casual"] | None
+    tone_level: int  # 1-5 scale: 1=very formal, 5=very casual
+    style_json: dict  # Additional brand voice guidelines
     blocklist: list[str]
 
 
@@ -140,18 +141,19 @@ def context_builder_node(state: DraftCrewState) -> DraftCrewState:
 # Node: Drafter
 def drafter_node(state: DraftCrewState) -> DraftCrewState:
     """
-    Generate HTML draft response respecting tone_level.
+    Generate HTML draft response respecting tone_level (1-5) and style guidelines.
     """
     message_summary = state["original_message_summary"]
     intent = state["intent"]
-    tone = state.get("tone_level", "friendly")
+    tone_level = state.get("tone_level", 3)
+    style_json = state.get("style_json", {})
     context = state.get("context_snippets", [])
 
     logger.info(
         f"Generating draft",
         extra={
             "intent": intent,
-            "tone": tone,
+            "tone_level": tone_level,
             "context_count": len(context),
         }
     )
@@ -161,24 +163,34 @@ def drafter_node(state: DraftCrewState) -> DraftCrewState:
     if context:
         context_str = "\n\nRelevant context:\n" + "\n".join(f"- {snippet}" for snippet in context)
 
-    # Tone instructions
-    tone_instructions = {
-        "formal": "Use professional, formal language. Avoid contractions. Be respectful and precise.",
-        "friendly": "Use warm, professional language. Contractions are fine. Be helpful and approachable.",
-        "casual": "Use conversational, relaxed language. Be personable and authentic.",
+    # Map tone level (1-5) to tone instructions
+    tone_map = {
+        1: ("Very Formal", "Use highly professional, formal language. Avoid all contractions. Be extremely respectful and precise. Use formal greetings and closings."),
+        2: ("Formal", "Use professional, formal language. Avoid contractions. Be respectful and precise."),
+        3: ("Neutral", "Use warm, professional language. Contractions are acceptable. Be helpful and clear."),
+        4: ("Casual", "Use friendly, conversational language. Use contractions naturally. Be personable and approachable."),
+        5: ("Very Casual", "Use relaxed, conversational language. Be personable and authentic. Write as you would to a friend."),
     }
+
+    tone_name, tone_instruction = tone_map.get(tone_level, tone_map[3])
+
+    # Add brand voice guidelines if present
+    brand_voice_str = ""
+    if style_json and "brand_voice" in style_json:
+        brand_voice_str = f"\n\nBrand Voice Guidelines: {style_json['brand_voice']}"
 
     prompt = f"""Generate an HTML email response for this customer inquiry.
 
 Intent: {intent}
-Tone: {tone} - {tone_instructions.get(tone, tone_instructions["friendly"])}
+Tone Level: {tone_level}/5 ({tone_name})
+Tone Instruction: {tone_instruction}{brand_voice_str}
 Message summary: {message_summary}
 {context_str}
 
 Requirements:
 - Return valid HTML (use <p>, <br>, <strong>, <em>, etc.)
 - Be concise but complete
-- Match the requested tone
+- Match the requested tone level and brand voice
 - Address the customer's needs based on the intent
 - Do NOT include any code blocks or markdown - just raw HTML
 
@@ -387,6 +399,7 @@ def prepare_initial_state(
         "workspace_id": workspace_id,
         "thread_id": thread_id,
         "tone_level": workspace_config.tone_level,
+        "style_json": workspace_config.style_json,
         "blocklist": workspace_config.blocklist,
         "intent": None,
         "confidence": None,
