@@ -206,6 +206,199 @@ See `backend/.env.example` for all configuration options including:
 
 See `frontend/.env.example` for frontend configuration (API host).
 
+## Connect Gmail via Token Vault
+
+Reploom uses **Auth0 Token Vault** to securely access Gmail on behalf of users without storing provider refresh tokens in the application database. This approach provides better security and compliance.
+
+### Overview
+
+The Gmail integration allows authenticated users to:
+- List Gmail labels (`GET /api/me/gmail/labels`)
+- Access Gmail data with proper scopes
+- Maintain secure token management through Auth0
+
+**Security Benefits:**
+- ✅ No provider refresh tokens stored in your database
+- ✅ Tokens obtained on-demand via Auth0's federated token exchange
+- ✅ Automatic token rotation handled by Auth0
+- ✅ Scoped access with minimal permissions (gmail.readonly, gmail.modify, gmail.compose)
+- ✅ Comprehensive logging with PII redaction
+
+### Required Auth0 Setup
+
+#### 1. Enable Google Social Connection
+
+1. Go to Auth0 Dashboard → **Authentication** → **Social**
+2. Enable **Google** connection
+3. Configure OAuth scopes:
+   ```
+   openid profile email
+   https://www.googleapis.com/auth/gmail.readonly
+   https://www.googleapis.com/auth/gmail.modify
+   https://www.googleapis.com/auth/gmail.compose
+   ```
+4. Note your Google Client ID and Secret (from [Google Cloud Console](https://console.cloud.google.com/apis/credentials))
+
+#### 2. Create Machine-to-Machine Application for Token Exchange
+
+1. Go to Auth0 Dashboard → **Applications** → **Create Application**
+2. Select **Machine to Machine Applications**
+3. Name it "Reploom Token Exchange API"
+4. Authorize it for **Auth0 Management API** with scope: `read:users`
+5. Copy the **Client ID** and **Client Secret** (these are `AUTH0_CUSTOM_API_CLIENT_ID` and `AUTH0_CUSTOM_API_CLIENT_SECRET`)
+
+#### 3. Configure Environment Variables
+
+Add to your `backend/.env`:
+
+```bash
+# Auth0 Token Vault Configuration
+AUTH0_CUSTOM_API_CLIENT_ID='your-m2m-client-id'
+AUTH0_CUSTOM_API_CLIENT_SECRET='your-m2m-client-secret'
+AUTH0_AUDIENCE='https://your-tenant.auth0.com/api/v2/'
+
+# Gmail API Scopes (space-separated)
+GMAIL_SCOPES='https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.compose'
+```
+
+### Testing the Integration
+
+#### 1. Test Authentication Flow
+
+```bash
+# Start the backend
+cd backend
+fastapi dev app/main.py
+
+# In another terminal, authenticate
+curl http://localhost:8000/api/auth/login
+```
+
+Log in with a Google account and grant the requested Gmail permissions.
+
+#### 2. Test Gmail Labels Endpoint
+
+```bash
+# After authentication, call the labels endpoint
+curl http://localhost:8000/api/me/gmail/labels \
+  -H "Cookie: auth0_session=..." \
+  --cookie-jar cookies.txt --cookie cookies.txt
+```
+
+Expected response:
+
+```json
+{
+  "labels": [
+    {
+      "id": "INBOX",
+      "name": "INBOX",
+      "type": "system",
+      "messageListVisibility": "show",
+      "labelListVisibility": "labelShow"
+    },
+    {
+      "id": "SENT",
+      "name": "SENT",
+      "type": "system"
+    }
+  ],
+  "scope": [
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.compose"
+  ],
+  "user": {
+    "sub": "google-oauth2|123456",
+    "email": "user@example.com",
+    "name": "John Doe"
+  }
+}
+```
+
+### Error Handling
+
+The Gmail integration provides detailed error messages:
+
+| Status Code | Error | Description |
+|-------------|-------|-------------|
+| 401 | `invalid_grant` | User's Google authorization expired or revoked. Reconnect Gmail. |
+| 403 | `insufficient_scope` | User didn't grant required Gmail permissions. Re-authenticate. |
+| 429 | `rate_limit_exceeded` | Gmail API quota exhausted. Wait and retry. |
+| 500 | `token_exchange_error` | Auth0 configuration issue. Check logs. |
+| 503 | `service_unavailable` | Gmail API temporarily down. Retry later. |
+| 504 | `timeout` | Request took too long. Retry. |
+
+### Security Considerations
+
+1. **No Token Logging:** Access tokens are never logged or exposed in API responses
+2. **Redacted Logs:** User identifiers are truncated in logs (e.g., `auth0|123...`)
+3. **Minimal Scopes:** Only request the scopes your application actually needs
+4. **Token Lifetime:** Tokens are short-lived and obtained on-demand
+5. **Error Messages:** User-friendly messages don't leak sensitive information
+
+### Architecture
+
+```
+User Request
+     ↓
+FastAPI (/api/me/gmail/labels)
+     ↓
+Token Exchange Helper (token_exchange.py)
+     ↓
+Auth0 Token Vault (OAuth Token Exchange)
+     ↓
+Google OAuth2 (Access Token)
+     ↓
+Gmail API (users.labels.list)
+     ↓
+Response to User
+```
+
+### Extending to Other Google APIs
+
+To add more Google services:
+
+1. Add required scopes to `GMAIL_SCOPES` in `.env`
+2. Re-authenticate users to grant new permissions
+3. Use the same `get_google_access_token()` helper
+4. Create new route handlers in `app/api/routes/`
+
+Example for Google Calendar:
+
+```python
+# In your route handler
+from app.auth.token_exchange import get_google_access_token
+
+access_token = await get_google_access_token(
+    user_sub=user["sub"],
+    scopes=["https://www.googleapis.com/auth/calendar.readonly"]
+)
+
+# Use token with Google Calendar API
+```
+
+### Troubleshooting
+
+**Issue:** `Token exchange service is not configured`
+
+**Solution:** Verify all required environment variables are set:
+- `AUTH0_DOMAIN`
+- `AUTH0_CUSTOM_API_CLIENT_ID`
+- `AUTH0_CUSTOM_API_CLIENT_SECRET`
+- `AUTH0_AUDIENCE`
+
+**Issue:** `User has not granted required Gmail permissions`
+
+**Solution:** User needs to:
+1. Log out from Reploom
+2. Log in again with Google
+3. Grant all requested Gmail permissions on the consent screen
+
+**Issue:** `Grant is invalid or expired`
+
+**Solution:** User's Google connection expired. They need to reconnect their Google account via Auth0.
+
 ## Learn More
 
 - [Auth0 Token Vault Concept](https://auth0.com/docs/secure/tokens/token-vault) - Secure credential management
