@@ -61,6 +61,64 @@ npm install && npm run dev
 
 Open http://localhost:5173 and start managing your emails with AI!
 
+## Local Dev (Compose)
+
+For a streamlined development experience, use the new one-command setup with Docker Compose and Make:
+
+### Quick Setup
+
+```bash
+cd backend
+make up          # Start postgres, redis, and qdrant with health checks
+make migrate     # Initialize database schema
+make dev         # Show dev server command
+```
+
+### Available Make Commands
+
+```bash
+make up          # Start all services (postgres, redis, qdrant)
+make down        # Stop all services
+make psql        # Connect to PostgreSQL database
+make migrate     # Run database migrations
+make seed        # Seed database with sample data (placeholder)
+make logs        # Show logs from all services
+make status      # Show status of all services
+make restart     # Restart all services
+make clean       # Stop services and remove volumes (deletes data!)
+make help        # Show all available commands
+```
+
+### Services
+
+The docker-compose stack includes:
+
+- **PostgreSQL (pgvector)**: Main database with vector extension on port 5432
+- **Redis**: Cache and session storage on port 6379
+- **Qdrant**: Vector database for semantic search on ports 6333 (HTTP) and 6334 (gRPC)
+
+All services include health checks and named volumes for data persistence.
+
+### Health Check
+
+Verify all services are running:
+
+```bash
+curl http://localhost:8000/healthz
+```
+
+Expected response:
+```json
+{
+  "status": "healthy",
+  "services": {
+    "postgres": "healthy",
+    "redis": "configured",
+    "qdrant": "healthy"
+  }
+}
+```
+
 ## Architecture
 
 ```
