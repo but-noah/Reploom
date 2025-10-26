@@ -10,6 +10,15 @@ from app.api.api_router import api_router
 from app.core.auth import auth_client
 from app.core.db import engine, init_db
 from app.core.fga import authorization_manager
+from app.core.tracing import setup_tracing
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+
+# Initialize OpenTelemetry tracing
+setup_tracing(service_name="reploom-backend")
+
+# Instrument HTTPX client for outbound requests
+HTTPXClientInstrumentor().instrument()
 
 
 @asynccontextmanager
@@ -27,6 +36,9 @@ app = FastAPI(
     title=settings.APP_NAME,
     lifespan=lifespan,
 )
+
+# Instrument FastAPI for automatic request tracing
+FastAPIInstrumentor.instrument_app(app)
 
 # Set all CORS enabled origins
 app.add_middleware(
