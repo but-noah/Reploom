@@ -1,9 +1,9 @@
 """Database models for workspace configuration."""
 
 import uuid
-from datetime import datetime
-from typing import Literal
-from sqlmodel import Field, SQLModel, Column, JSON
+from datetime import datetime, timezone
+from typing import Literal, Annotated
+from sqlmodel import Field, SQLModel, Column, JSON, String
 
 
 class WorkspaceSettings(SQLModel, table=True):
@@ -26,8 +26,9 @@ class WorkspaceSettings(SQLModel, table=True):
     workspace_id: str = Field(index=True, unique=True)
 
     # Tone configuration
-    tone_level: Literal["formal", "friendly", "casual"] = Field(
+    tone_level: str = Field(
         default="friendly",
+        sa_column=Column(String),
         description="Default tone for draft generation"
     )
 
@@ -45,8 +46,8 @@ class WorkspaceSettings(SQLModel, table=True):
     )
 
     # Timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Config:
         """SQLModel configuration."""

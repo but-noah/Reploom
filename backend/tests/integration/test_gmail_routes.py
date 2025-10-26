@@ -6,6 +6,7 @@ These tests verify the end-to-end flow of the Gmail endpoints with mocked extern
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from fastapi.testclient import TestClient
+import httpx
 
 
 @pytest.mark.integration
@@ -15,8 +16,9 @@ def test_list_gmail_labels_success(client: TestClient):
     mock_token = "ya29.mock-google-access-token"
 
     # Mock token exchange response
-    mock_exchange_resp = MagicMock()
+    mock_exchange_resp = MagicMock(spec=httpx.Response)
     mock_exchange_resp.status_code = 200
+    mock_exchange_resp.content = b'{"access_token": "test"}'
     mock_exchange_resp.json.return_value = {
         "access_token": mock_token,
         "token_type": "Bearer",
@@ -55,16 +57,16 @@ def test_list_gmail_labels_success(client: TestClient):
     mock_gmail_response.raise_for_status = MagicMock()
 
     with patch("app.auth.token_exchange.httpx.AsyncClient") as mock_exchange_client:
-        mock_ex_client = MagicMock()
-        mock_ex_client.__aenter__ = AsyncMock(return_value=mock_ex_client)
-        mock_ex_client.__aexit__ = AsyncMock(return_value=None)
+        mock_ex_client = AsyncMock()
+        mock_ex_client.__aenter__.return_value = mock_ex_client
+        mock_ex_client.__aexit__.return_value = None
         mock_ex_client.post = AsyncMock(return_value=mock_exchange_resp)
         mock_exchange_client.return_value = mock_ex_client
 
         with patch("app.api.routes.gmail.httpx.AsyncClient") as mock_gmail_client:
-            mock_gmail = MagicMock()
-            mock_gmail.__aenter__ = AsyncMock(return_value=mock_gmail)
-            mock_gmail.__aexit__ = AsyncMock(return_value=None)
+            mock_gmail = AsyncMock()
+            mock_gmail.__aenter__.return_value = mock_gmail
+            mock_gmail.__aexit__.return_value = None
             mock_gmail.get = AsyncMock(return_value=mock_gmail_response)
             mock_gmail_client.return_value = mock_gmail
 
@@ -170,16 +172,16 @@ def test_list_gmail_labels_gmail_api_error(client: TestClient):
     }
 
     with patch("app.auth.token_exchange.httpx.AsyncClient") as mock_exchange_client:
-        mock_ex_client = MagicMock()
-        mock_ex_client.__aenter__ = AsyncMock(return_value=mock_ex_client)
-        mock_ex_client.__aexit__ = AsyncMock(return_value=None)
+        mock_ex_client = AsyncMock()
+        mock_ex_client.__aenter__.return_value = mock_ex_client
+        mock_ex_client.__aexit__.return_value = None
         mock_ex_client.post = AsyncMock(return_value=mock_exchange_resp)
         mock_exchange_client.return_value = mock_ex_client
 
         with patch("app.api.routes.gmail.httpx.AsyncClient") as mock_gmail_client:
-            mock_gmail = MagicMock()
-            mock_gmail.__aenter__ = AsyncMock(return_value=mock_gmail)
-            mock_gmail.__aexit__ = AsyncMock(return_value=None)
+            mock_gmail = AsyncMock()
+            mock_gmail.__aenter__.return_value = mock_gmail
+            mock_gmail.__aexit__.return_value = None
             mock_gmail.get = AsyncMock(return_value=mock_gmail_response)
             mock_gmail_client.return_value = mock_gmail
 
@@ -218,16 +220,16 @@ def test_list_gmail_labels_gmail_permission_error(client: TestClient):
     }
 
     with patch("app.auth.token_exchange.httpx.AsyncClient") as mock_exchange_client:
-        mock_ex_client = MagicMock()
-        mock_ex_client.__aenter__ = AsyncMock(return_value=mock_ex_client)
-        mock_ex_client.__aexit__ = AsyncMock(return_value=None)
+        mock_ex_client = AsyncMock()
+        mock_ex_client.__aenter__.return_value = mock_ex_client
+        mock_ex_client.__aexit__.return_value = None
         mock_ex_client.post = AsyncMock(return_value=mock_exchange_resp)
         mock_exchange_client.return_value = mock_ex_client
 
         with patch("app.api.routes.gmail.httpx.AsyncClient") as mock_gmail_client:
-            mock_gmail = MagicMock()
-            mock_gmail.__aenter__ = AsyncMock(return_value=mock_gmail)
-            mock_gmail.__aexit__ = AsyncMock(return_value=None)
+            mock_gmail = AsyncMock()
+            mock_gmail.__aenter__.return_value = mock_gmail
+            mock_gmail.__aexit__.return_value = None
             mock_gmail.get = AsyncMock(return_value=mock_gmail_response)
             mock_gmail_client.return_value = mock_gmail
 
@@ -261,16 +263,16 @@ def test_list_gmail_labels_returns_array_structure(client: TestClient):
     mock_gmail_response.raise_for_status = MagicMock()
 
     with patch("app.auth.token_exchange.httpx.AsyncClient") as mock_exchange_client:
-        mock_ex_client = MagicMock()
-        mock_ex_client.__aenter__ = AsyncMock(return_value=mock_ex_client)
-        mock_ex_client.__aexit__ = AsyncMock(return_value=None)
+        mock_ex_client = AsyncMock()
+        mock_ex_client.__aenter__.return_value = mock_ex_client
+        mock_ex_client.__aexit__.return_value = None
         mock_ex_client.post = AsyncMock(return_value=mock_exchange_resp)
         mock_exchange_client.return_value = mock_ex_client
 
         with patch("app.api.routes.gmail.httpx.AsyncClient") as mock_gmail_client:
-            mock_gmail = MagicMock()
-            mock_gmail.__aenter__ = AsyncMock(return_value=mock_gmail)
-            mock_gmail.__aexit__ = AsyncMock(return_value=None)
+            mock_gmail = AsyncMock()
+            mock_gmail.__aenter__.return_value = mock_gmail
+            mock_gmail.__aexit__.return_value = None
             mock_gmail.get = AsyncMock(return_value=mock_gmail_response)
             mock_gmail_client.return_value = mock_gmail
 
