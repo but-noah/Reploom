@@ -399,12 +399,189 @@ access_token = await get_google_access_token(
 
 **Solution:** User's Google connection expired. They need to reconnect their Google account via Auth0.
 
+## Reply Drafts
+
+Reploom supports creating Gmail draft replies that properly thread within existing conversations. Drafts include correct MIME formatting with In-Reply-To and References headers to ensure proper Gmail threading.
+
+### Features
+
+- **Proper Threading:** Drafts appear in the same Gmail thread as the original message
+- **RFC-Compliant MIME:** In-Reply-To and References headers for email client compatibility
+- **Subject Continuity:** Auto-adds "Re:" prefix if missing
+- **HTML Content:** Full HTML email body support with UTF-8 encoding
+- **Idempotent:** Prevents duplicate drafts for the same reply context
+- **Strong Error Handling:** Rate limits, invalid headers, and missing messages handled gracefully
+
+### API Endpoint
+
+**POST** `/api/me/gmail/threads/{thread_id}/draft`
+
+Create a draft reply within an existing Gmail thread.
+
+#### Request Body
+
+```json
+{
+  "reply_to_msg_id": "msg_abc123",
+  "subject": null,
+  "body_html": "<p>Thanks for your email! I'll get back to you soon.</p>"
+}
+```
+
+**Parameters:**
+- `reply_to_msg_id` (required): Gmail message ID being replied to
+- `subject` (optional): Email subject. If null, auto-generated with "Re:" prefix from original message
+- `body_html` (required): HTML content of the reply
+
+#### Response
+
+```json
+{
+  "draft_id": "r-1234567890",
+  "message_id": "msg_xyz789",
+  "thread_id": "thread_abc123",
+  "subject": "Re: Original Subject",
+  "created_at": "2025-01-15T10:30:00Z",
+  "is_duplicate": false
+}
+```
+
+**Fields:**
+- `draft_id`: Gmail draft ID (use to update or delete draft)
+- `message_id`: Gmail message ID
+- `thread_id`: Thread ID (matches request)
+- `subject`: Final subject used (with "Re:" prefix)
+- `created_at`: UTC timestamp when draft was created
+- `is_duplicate`: True if this was a duplicate request (idempotent response)
+
+### Example Usage
+
+#### Create a Draft Reply
+
+```bash
+curl -X POST http://localhost:8000/api/me/gmail/threads/thread_abc123/draft \
+  -H "Content-Type: application/json" \
+  -H "Cookie: auth0_session=..." \
+  -d '{
+    "reply_to_msg_id": "msg_def456",
+    "subject": null,
+    "body_html": "<p>Thanks for reaching out!</p><p>Best regards,<br>The Team</p>"
+  }'
+```
+
+#### Create a Draft with Custom Subject
+
+```bash
+curl -X POST http://localhost:8000/api/me/gmail/threads/thread_abc123/draft \
+  -H "Content-Type: application/json" \
+  -H "Cookie: auth0_session=..." \
+  -d '{
+    "reply_to_msg_id": "msg_def456",
+    "subject": "Quick Follow-up",
+    "body_html": "<p>Just following up on our previous conversation.</p>"
+  }'
+```
+
+**Note:** The subject will automatically become "Re: Quick Follow-up" to maintain proper threading.
+
+### How It Works
+
+1. **Fetch Original Message:** Retrieves the message being replied to and extracts headers
+2. **Build MIME:** Creates RFC-compliant MIME message with:
+   - `In-Reply-To`: Set to original message's Message-ID
+   - `References`: Chain of all message IDs in the thread
+   - `Subject`: With "Re:" prefix for continuity
+   - `Content-Type: text/html; charset=utf-8`
+3. **Create Draft:** Calls Gmail API with `threadId` to ensure proper threading
+4. **Store Reference:** Saves draft metadata in database for idempotency
+
+### Threading Behavior
+
+Gmail uses three signals for threading:
+1. **threadId** in the API request (most important)
+2. **In-Reply-To** header pointing to the Message-ID being replied to
+3. **References** header with the complete chain of Message-IDs
+
+Reploom implements all three to ensure drafts appear correctly threaded.
+
+### Idempotent Behavior
+
+To prevent duplicate drafts when the same request is made multiple times:
+- Tracks drafts by `(user_id, thread_id, reply_to_msg_id, content_hash)`
+- If an identical draft request is made, returns the existing draft
+- Response includes `is_duplicate: true` to indicate idempotent response
+
+### Error Handling
+
+| Status Code | Error | Description |
+|-------------|-------|-------------|
+| 400 | `invalid_message` | Message missing required headers (e.g., Message-ID) |
+| 400 | `validation_error` | Missing or invalid request parameters |
+| 401 | `invalid_grant` | Google authorization expired. Reconnect Gmail. |
+| 403 | `insufficient_scope` | Missing required Gmail permissions. Re-authenticate. |
+| 404 | `thread_not_found` | Thread or message doesn't exist |
+| 429 | `rate_limit_exceeded` | Gmail API quota exhausted. Wait and retry. |
+| 500 | `draft_creation_error` | Gmail API error creating draft |
+| 503 | `service_unavailable` | Gmail API temporarily down. Retry later. |
+| 504 | `timeout` | Request took too long. Retry. |
+
+### MIME Example
+
+Here's what the generated MIME looks like:
+
+```
+To: sender@example.com
+From: me
+Subject: Re: Original Subject
+In-Reply-To: <CAFx9sH_OriginalMessageID@mail.gmail.com>
+References: <CAFx9sH_FirstMsg@mail.gmail.com> <CAFx9sH_OriginalMessageID@mail.gmail.com>
+Content-Type: multipart/alternative; boundary="===============1234567890=="
+MIME-Version: 1.0
+
+--===============1234567890==
+Content-Type: text/html; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+
+<p>Thanks for your email! I'll get back to you soon.</p>
+--===============1234567890==--
+```
+
+### Integration with AI Agents
+
+The draft reply endpoint is designed to work seamlessly with AI agents:
+
+```python
+# In your LangGraph agent
+from app.integrations.gmail_service import create_reply_draft
+from app.auth.token_exchange import get_google_access_token
+
+async def create_ai_reply(thread_id: str, message_id: str, ai_response: str):
+    # Get access token
+    token = await get_google_access_token(
+        user_sub=user["sub"],
+        scopes=["https://www.googleapis.com/auth/gmail.compose"]
+    )
+
+    # Create draft with AI-generated response
+    draft = await create_reply_draft(
+        user_token=token,
+        thread_id=thread_id,
+        reply_to_msg_id=message_id,
+        subject=None,  # Auto-generate
+        html_body=f"<p>{ai_response}</p>"
+    )
+
+    return draft["draft_id"]
+```
+
 ## Learn More
 
 - [Auth0 Token Vault Concept](https://auth0.com/docs/secure/tokens/token-vault) - Secure credential management
 - [Tool Calling in AI Agents](https://auth0.com/blog/genai-tool-calling-intro/) - Security best practices
 - [Build an AI Assistant with LangGraph](https://auth0.com/blog/genai-tool-calling-build-agent-that-calls-gmail-securely-with-langgraph-vercelai-nextjs/)
 - [Auth for GenAI Documentation](https://auth0.com/ai/docs)
+- [Gmail API Drafts Reference](https://developers.google.com/gmail/api/guides/drafts) - Official Gmail API documentation
 
 ## Development
 
