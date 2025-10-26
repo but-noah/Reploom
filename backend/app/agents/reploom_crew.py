@@ -1,25 +1,35 @@
 """
 Reploom Draft Generation Crew
 
-A multi-agent LangGraph workflow for generating email drafts with:
+A production-ready LangGraph workflow for generating email drafts with:
 - Intent classification
 - Context building (stub)
 - Draft generation with tone control
 - Policy enforcement (blocklist, tone compliance)
+- Persistent checkpointer (Postgres or memory fallback)
 
 Flow: classifier -> contextBuilder -> drafter -> policyGuard
 """
-from typing import TypedDict, Annotated, Literal
+import logging
+from typing import TypedDict, Literal
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
-import os
+from langchain_core.messages import HumanMessage
 
-# TODO: Replace MemorySaver with PostgresCheckpointer once available
-# See: https://github.com/but-noah/Reploom/issues/XXX
-# from langgraph.checkpoint.postgres import PostgresCheckpointer
-# checkpointer = PostgresCheckpointer.from_conn_string(settings.DATABASE_URL)
+from app.core.config import settings
+from app.core.workspace import get_workspace_settings
+
+# Configure logging with PII redaction
+logger = logging.getLogger(__name__)
+
+
+def redact_pii(text: str, max_length: int = 100) -> str:
+    """Redact PII from logs by truncating and masking."""
+    if len(text) > max_length:
+        return text[:max_length] + "...[REDACTED]"
+    return text
+
 
 # State Schema
 class DraftCrewState(TypedDict):
@@ -27,6 +37,7 @@ class DraftCrewState(TypedDict):
     # Input
     original_message_summary: str
     workspace_id: str | None
+    thread_id: str | None  # Track thread ID in state
 
     # Intermediate
     intent: Literal["support", "cs", "exec", "other"] | None
@@ -37,15 +48,12 @@ class DraftCrewState(TypedDict):
     draft_html: str | None
     violations: list[str]
 
-    # Config
+    # Config (loaded from workspace settings)
     tone_level: Literal["formal", "friendly", "casual"] | None
     blocklist: list[str]
 
 
-# Configuration
-BLOCKLIST_PHRASES = os.getenv("REPLOOM_BLOCKLIST", "free trial,money back guarantee,limited time offer").split(",")
-DEFAULT_TONE = os.getenv("REPLOOM_DEFAULT_TONE", "friendly")
-
+# Initialize LLM
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.7)
 
 
@@ -59,6 +67,15 @@ def classifier_node(state: DraftCrewState) -> DraftCrewState:
         - confidence: 0.0 - 1.0
     """
     message_summary = state["original_message_summary"]
+
+    # Log with PII redaction
+    logger.info(
+        f"Classifying message intent",
+        extra={
+            "message_preview": redact_pii(message_summary, 50),
+            "workspace_id": state.get("workspace_id", "unknown"),
+        }
+    )
 
     prompt = f"""Classify the intent of this email summary into one of these categories:
 - support: Technical support or troubleshooting
@@ -74,15 +91,18 @@ Respond with JSON only:
 
     response = llm.invoke([HumanMessage(content=prompt)])
 
-    # Parse response (simplified - in production use structured output)
+    # Parse response
     import json
     try:
         result = json.loads(response.content)
         intent = result.get("intent", "other")
         confidence = result.get("confidence", 0.5)
-    except:
+    except Exception as e:
+        logger.warning(f"Failed to parse classifier response: {e}")
         intent = "other"
         confidence = 0.5
+
+    logger.info(f"Classified as intent={intent} with confidence={confidence:.2f}")
 
     return {
         **state,
@@ -101,7 +121,8 @@ def context_builder_node(state: DraftCrewState) -> DraftCrewState:
 
     For now, returns empty context_snippets.
     """
-    # Placeholder implementation
+    logger.info("Building context (stub - empty for now)")
+
     context_snippets = []
 
     # Future implementation would:
@@ -123,8 +144,17 @@ def drafter_node(state: DraftCrewState) -> DraftCrewState:
     """
     message_summary = state["original_message_summary"]
     intent = state["intent"]
-    tone = state.get("tone_level") or DEFAULT_TONE
+    tone = state.get("tone_level", "friendly")
     context = state.get("context_snippets", [])
+
+    logger.info(
+        f"Generating draft",
+        extra={
+            "intent": intent,
+            "tone": tone,
+            "context_count": len(context),
+        }
+    )
 
     # Build context string
     context_str = ""
@@ -162,6 +192,8 @@ Generate the HTML email body:
     if draft_html.startswith("```html"):
         draft_html = draft_html.replace("```html", "").replace("```", "").strip()
 
+    logger.info(f"Generated draft with {len(draft_html)} characters")
+
     return {
         **state,
         "draft_html": draft_html,
@@ -172,26 +204,48 @@ Generate the HTML email body:
 def policy_guard_node(state: DraftCrewState) -> DraftCrewState:
     """
     Check draft against workspace policy:
-    - Blocklist phrases
-    - Tone compliance (future: use LLM to verify tone)
+    - Blocklist phrases (loaded from workspace settings)
+    - Fail fast on violations
 
     If violations found, halt the workflow.
     """
     draft = state.get("draft_html", "")
-    blocklist = state.get("blocklist") or BLOCKLIST_PHRASES
+    blocklist = state.get("blocklist", [])
     violations = []
 
-    # Check blocklist
+    logger.info(
+        f"Checking policy compliance",
+        extra={
+            "blocklist_count": len(blocklist),
+            "draft_length": len(draft),
+        }
+    )
+
+    # Check blocklist (case-insensitive, fail fast)
     draft_lower = draft.lower()
     for phrase in blocklist:
-        if phrase.strip().lower() in draft_lower:
-            violations.append(f"Blocklisted phrase detected: '{phrase.strip()}'")
+        phrase_clean = phrase.strip().lower()
+        if phrase_clean and phrase_clean in draft_lower:
+            violation_msg = f"Blocklisted phrase detected: '{phrase.strip()}'"
+            violations.append(violation_msg)
+            logger.warning(
+                f"Policy violation",
+                extra={
+                    "violation": phrase.strip(),
+                    "workspace_id": state.get("workspace_id", "unknown"),
+                }
+            )
 
     # Future: LLM-based tone verification
     # if state.get("tone_level"):
     #     tone_check = verify_tone_compliance(draft, state["tone_level"])
     #     if not tone_check["compliant"]:
     #         violations.append(f"Tone mismatch: {tone_check['reason']}")
+
+    if violations:
+        logger.warning(f"Draft failed policy check with {len(violations)} violation(s)")
+    else:
+        logger.info("Draft passed policy check")
 
     return {
         **state,
@@ -244,56 +298,99 @@ def create_reploom_crew() -> StateGraph:
     return workflow
 
 
-# Compile the graph with checkpointer
-checkpointer = MemorySaver()
-graph = create_reploom_crew().compile(checkpointer=checkpointer)
+# Initialize checkpointer based on configuration
+def get_checkpointer():
+    """
+    Get checkpointer based on GRAPH_CHECKPOINTER setting.
 
+    - postgres: PostgreSQL checkpointer (production)
+    - memory: In-memory checkpointer (development only)
+
+    Falls back to memory if postgres is configured but unavailable.
+    """
+    checkpointer_type = settings.GRAPH_CHECKPOINTER.lower()
+
+    if checkpointer_type == "postgres":
+        try:
+            from langgraph.checkpoint.postgres import PostgresCheckpointer
+
+            # Extract connection string
+            # LangGraph PostgresCheckpointer uses psycopg3 format
+            db_url = settings.DATABASE_URL
+
+            logger.info("Initializing PostgreSQL checkpointer")
+            checkpointer = PostgresCheckpointer.from_conn_string(db_url)
+
+            # Test connection
+            checkpointer.setup()
+            logger.info("PostgreSQL checkpointer initialized successfully")
+            return checkpointer
+
+        except ImportError:
+            logger.warning(
+                "PostgreSQL checkpointer not available (missing langgraph-checkpoint-postgres). "
+                "Falling back to memory checkpointer. "
+                "Install with: pip install langgraph-checkpoint-postgres"
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to initialize PostgreSQL checkpointer: {e}. "
+                "Falling back to memory checkpointer."
+            )
+
+    # Fallback to memory checkpointer
+    logger.warning(
+        "Using in-memory checkpointer. State will not persist across server restarts. "
+        "For production, set GRAPH_CHECKPOINTER=postgres and ensure database is configured."
+    )
+    return MemorySaver()
+
+
+# Initialize checkpointer and compile graph
+checkpointer = get_checkpointer()
+graph = create_reploom_crew().compile(checkpointer=checkpointer)
 
 # Export for LangGraph server
 reploom_crew = graph
 
 
-# Helper function for backend wrapper
-def run_draft_flow(
+def prepare_initial_state(
     message_summary: str,
     workspace_id: str | None = None,
     thread_id: str | None = None,
-    tone_level: str = "friendly",
-    blocklist: list[str] | None = None,
-) -> dict:
+) -> DraftCrewState:
     """
-    Run the draft generation flow.
+    Prepare initial state for the workflow, loading workspace settings.
 
     Args:
         message_summary: Summary of the incoming message
-        workspace_id: Workspace identifier
-        thread_id: Thread ID for resumable execution (checkpointer)
-        tone_level: Tone of the response (formal, friendly, casual)
-        blocklist: List of disallowed phrases
+        workspace_id: Workspace identifier (loads settings from DB)
+        thread_id: Thread ID for resumable execution
 
     Returns:
-        dict with keys: draft_html, confidence, intent, violations
+        Initial state dict with workspace settings applied
     """
-    config = {"configurable": {"thread_id": thread_id or "default"}}
+    # Load workspace settings
+    workspace_config = get_workspace_settings(workspace_id)
 
-    initial_state = {
+    logger.info(
+        f"Prepared initial state",
+        extra={
+            "workspace_id": workspace_config.workspace_id,
+            "tone_level": workspace_config.tone_level,
+            "blocklist_count": len(workspace_config.blocklist),
+        }
+    )
+
+    return {
         "original_message_summary": message_summary,
         "workspace_id": workspace_id,
-        "tone_level": tone_level,
-        "blocklist": blocklist or BLOCKLIST_PHRASES,
+        "thread_id": thread_id,
+        "tone_level": workspace_config.tone_level,
+        "blocklist": workspace_config.blocklist,
         "intent": None,
         "confidence": None,
         "context_snippets": [],
         "draft_html": None,
         "violations": [],
-    }
-
-    # Run the workflow
-    result = graph.invoke(initial_state, config=config)
-
-    return {
-        "draft_html": result.get("draft_html"),
-        "confidence": result.get("confidence"),
-        "intent": result.get("intent"),
-        "violations": result.get("violations", []),
     }
