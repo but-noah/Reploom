@@ -575,6 +575,239 @@ async def create_ai_reply(thread_id: str, message_id: str, ai_response: str):
     return draft["draft_id"]
 ```
 
+## Agent Draft Flow
+
+Reploom includes a production-ready LangGraph agent crew for intelligent draft generation with policy enforcement, workspace-level configuration, and resumable workflows.
+
+### Features
+
+- **Intent Classification:** Automatically categorizes emails (support, customer service, executive, other)
+- **Workspace Settings:** Tone and blocklist configuration per workspace
+- **Policy Enforcement:** Real-time blocklist checking before draft creation
+- **Persistent Checkpointer:** PostgreSQL-backed state for resumable workflows
+- **PII Redaction:** Automatic redaction of sensitive data in logs
+- **Human-in-the-Loop:** Thread-based resumption for review and approval
+
+### Architecture
+
+```
+┌─────────────┐
+│  Classifier │  → Detect intent (support/cs/exec/other) + confidence
+└──────┬──────┘
+       │
+┌──────┴─────────┐
+│ ContextBuilder │  → Retrieve workspace context (stub)
+└──────┬─────────┘
+       │
+┌──────┴──────┐
+│   Drafter   │  → Generate HTML draft with tone control
+└──────┬──────┘
+       │
+┌──────┴───────┐
+│ PolicyGuard  │  → Check blocklist, fail fast on violations
+└──────┬───────┘
+       │
+   (halt/continue)
+```
+
+### Workspace Configuration
+
+Configure per-workspace settings in the database:
+
+```sql
+INSERT INTO workspace_settings (workspace_id, tone_level, blocklist_json, approval_threshold)
+VALUES (
+  'ws-acme-corp',
+  'friendly',
+  '["free trial", "money back guarantee", "limited time offer"]'::json,
+  0.85
+);
+```
+
+Or seed default settings:
+
+```bash
+cd backend
+python -c "from app.core.workspace import seed_workspace_settings; seed_workspace_settings()"
+```
+
+### API Endpoints
+
+#### POST `/api/agents/reploom/run-draft`
+
+Generate a draft with intent classification and policy enforcement.
+
+**Request:**
+```bash
+curl -X POST http://localhost:8000/api/agents/reploom/run-draft \
+  -H "Content-Type: application/json" \
+  -H "Cookie: auth0_session=..." \
+  -H "x-correlation-id: req-12345" \
+  -d '{
+    "thread_id": "customer-123",
+    "message_excerpt": "I need help resetting my password",
+    "workspace_id": "ws-acme-corp"
+  }'
+```
+
+**Response:**
+```json
+{
+  "draft_html": "<p>Hi there! I'd be happy to help you reset your password...</p>",
+  "confidence": 0.92,
+  "intent": "support",
+  "violations": [],
+  "thread_id": "customer-123",
+  "run_id": "run-abc123"
+}
+```
+
+**With Policy Violations:**
+```json
+{
+  "draft_html": "<p>Get your free trial now...</p>",
+  "confidence": 0.88,
+  "intent": "cs",
+  "violations": ["Blocklisted phrase detected: 'free trial'"],
+  "thread_id": "customer-456",
+  "run_id": "run-def456"
+}
+```
+
+#### GET `/api/agents/reploom/runs/{thread_id}`
+
+Fetch the current state of a draft generation run.
+
+**Request:**
+```bash
+curl http://localhost:8000/api/agents/reploom/runs/customer-123 \
+  -H "Cookie: auth0_session=..." \
+  -H "x-correlation-id: req-12345"
+```
+
+**Response:**
+```json
+{
+  "state": {
+    "intent": "support",
+    "confidence": 0.92,
+    "draft_html": "<p>Hi there!...</p>",
+    "violations": [],
+    "tone_level": "friendly"
+  },
+  "status": "completed",
+  "thread_id": "customer-123"
+}
+```
+
+#### GET `/api/agents/reploom/health`
+
+Check agent crew health and configuration.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "langgraph_server": "connected",
+  "checkpointer": "postgres"
+}
+```
+
+### Checkpointer Configuration
+
+Reploom supports two checkpointer modes:
+
+**PostgreSQL (Production):**
+```bash
+# .env
+GRAPH_CHECKPOINTER=postgres
+DATABASE_URL=postgresql+psycopg://user:pass@localhost:5432/reploom_db
+```
+
+State persists across server restarts, enabling true resumable workflows.
+
+**Memory (Development):**
+```bash
+# .env
+GRAPH_CHECKPOINTER=memory
+```
+
+State is lost on restart. Useful for local development but not for production.
+
+### Security
+
+The agent draft flow includes production-ready security features:
+
+- **PII Redaction:** User emails and IDs are truncated/masked in logs
+- **Correlation ID:** Every request tracked with `x-correlation-id` header
+- **No Auto-Send:** Drafts only, no automatic email sending
+- **Workspace Isolation:** Settings and policies scoped to workspace
+
+### Testing
+
+Run the comprehensive test suite:
+
+```bash
+cd backend
+
+# Unit tests
+pytest tests/unit/test_reploom_crew_stabilized.py -v
+
+# All tests
+pytest
+```
+
+### Example Workflow
+
+```python
+# 1. User emails: "I need help resetting my password"
+
+# 2. Backend calls: POST /api/agents/reploom/run-draft
+{
+  "message_excerpt": "I need help resetting my password",
+  "workspace_id": "ws-acme-corp"
+}
+
+# 3. Agent workflow:
+# - Classifier: intent=support, confidence=0.92
+# - ContextBuilder: Fetches relevant KB articles (stub)
+# - Drafter: Generates friendly HTML response
+# - PolicyGuard: Checks against workspace blocklist
+
+# 4. Response returned:
+{
+  "draft_html": "<p>Hi there! I'd be happy to help...</p>",
+  "confidence": 0.92,
+  "intent": "support",
+  "violations": [],
+  "thread_id": "thread-abc123",
+  "run_id": "run-xyz789"
+}
+
+# 5. Frontend displays draft for review
+# 6. User approves and sends via Gmail draft API
+```
+
+### Troubleshooting
+
+**Issue:** `Using in-memory checkpointer` warning
+
+**Solution:** Install PostgreSQL checkpointer:
+```bash
+pip install langgraph-checkpoint-postgres
+```
+
+Or set `GRAPH_CHECKPOINTER=memory` in `.env` to suppress the warning.
+
+**Issue:** `Workspace not found, falling back to default`
+
+**Solution:** Seed workspace settings:
+```bash
+python -c "from app.core.workspace import seed_workspace_settings; seed_workspace_settings()"
+```
+
+Or create workspace settings manually in the database.
+
 ## Learn More
 
 - [Auth0 Token Vault Concept](https://auth0.com/docs/secure/tokens/token-vault) - Secure credential management

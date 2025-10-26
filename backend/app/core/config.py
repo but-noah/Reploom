@@ -68,6 +68,11 @@ class Settings(BaseSettings):
     LANGGRAPH_API_URL: str = "http://localhost:54367"
     LANGGRAPH_API_KEY: str = ""
 
+    # LangGraph Checkpointer Configuration
+    # postgres: Use PostgreSQL checkpointer (production)
+    # memory: Use in-memory checkpointer (development only - not persistent across restarts)
+    GRAPH_CHECKPOINTER: str = "postgres"
+
     FRONTEND_HOST: str = "http://localhost:5173"
     BACKEND_CORS_ORIGINS: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = [
         "http://localhost:8000"
