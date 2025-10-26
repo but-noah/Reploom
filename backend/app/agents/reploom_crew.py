@@ -112,25 +112,56 @@ Respond with JSON only:
     }
 
 
-# Node: Context Builder (Stub)
+# Node: Context Builder
 def context_builder_node(state: DraftCrewState) -> DraftCrewState:
     """
-    Build context for draft generation.
+    Build context for draft generation using KB retrieval.
 
-    TODO: Implement RAG retrieval from Qdrant
-    TODO: Fetch workspace-specific context (past emails, KB articles, etc.)
-
-    For now, returns empty context_snippets.
+    Retrieves relevant knowledge base chunks based on the message summary
+    and workspace context.
     """
-    logger.info("Building context (stub - empty for now)")
+    message_summary = state["original_message_summary"]
+    workspace_id = state.get("workspace_id")
+
+    logger.info(
+        f"Building context from KB",
+        extra={
+            "workspace_id": workspace_id,
+            "message_preview": redact_pii(message_summary, 50),
+        }
+    )
 
     context_snippets = []
 
-    # Future implementation would:
-    # 1. Query Qdrant with message_summary as embedding
-    # 2. Fetch workspace-specific documents
-    # 3. Retrieve similar past conversations
-    # 4. Pull relevant KB articles based on intent
+    # Retrieve from KB if workspace_id is available
+    if workspace_id:
+        try:
+            from app.kb.retrieval import search_kb
+
+            # Search KB for relevant chunks
+            search_results = search_kb(
+                query=message_summary,
+                workspace_id=workspace_id,
+                k=5,  # Top 5 most relevant chunks
+                with_vectors=False,  # Optimize: skip vectors
+            )
+
+            # Format snippets for drafter
+            for result in search_results:
+                snippet = f"[{result.source}"
+                if result.title:
+                    snippet += f" - {result.title}"
+                snippet += f"] {result.content}"
+                context_snippets.append(snippet)
+
+            logger.info(f"Retrieved {len(context_snippets)} KB snippets")
+
+        except Exception as e:
+            logger.warning(f"KB retrieval failed: {e}. Continuing without KB context.")
+            # Don't fail the entire workflow if KB is unavailable
+            context_snippets = []
+    else:
+        logger.info("No workspace_id provided, skipping KB retrieval")
 
     return {
         **state,
