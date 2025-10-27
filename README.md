@@ -2,6 +2,8 @@
 
 Reploom is an intelligent email response system built with React (Vite) + LangGraph that generates high-quality email drafts using AI agents. With Gmail integration, human-in-the-loop workflows, and workspace-based brand voice management, Reploom helps teams respond faster while maintaining quality and control.
 
+**🔒 Safety First**: Reploom **never auto-sends emails**. All drafts require human review and approval. See [SAFETY.md](./SAFETY.md) for complete safety and security documentation.
+
 ## Features
 
 - **Gmail Integration:** Automated inbox scanning, email summarization, priority detection, and draft generation
@@ -12,6 +14,78 @@ Reploom is an intelligent email response system built with React (Vite) + LangGr
 - **Fine-Grained Authorization:** Auth0 FGA integration for workspace and tool-level access control
 - **Secure API Access:** Auth0 Token Vault for credential-free tool calling
 - **User Management:** Complete authentication with profile retrieval and workspace organization
+
+## Try in 5 Minutes (Demo Mode)
+
+Want to see Reploom in action without setting up Gmail integration? Follow this quick demo walkthrough:
+
+### Prerequisites
+- Node.js 18+ and npm
+- Python 3.11+
+- Docker and Docker Compose
+
+### Step 1: Clone and Setup
+```bash
+git clone https://github.com/but-noah/Reploom.git
+cd Reploom
+```
+
+### Step 2: Start Backend Services
+```bash
+cd backend
+cp .env.example .env
+# Edit .env and add minimal config (OpenAI key optional for demo)
+make up          # Start postgres, redis, qdrant
+make migrate     # Initialize database schema
+make seed        # Seed demo data with sample drafts
+```
+
+The seed script will create:
+- A demo workspace with tone_level=3 and blocklist
+- 4 sample draft reviews with fake customer emails (no PII)
+- Ready-to-review drafts in various states (pending, approved)
+
+### Step 3: Start Frontend
+```bash
+cd ../frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+### Step 4: Explore the Demo
+1. **Inbox**: Navigate to http://localhost:5173/inbox
+   - See the draft review queue with 4 sample drafts
+   - Filter by status (pending, approved) and intent (support, cs, other)
+   - Click on any draft to review
+
+2. **Review**: Click on a draft to see:
+   - Original customer message context
+   - AI-generated draft response (HTML formatted)
+   - Intent classification and confidence score
+   - Approve/Reject/Request Edit actions
+
+3. **Analytics**: Visit http://localhost:5173/analytics
+   - View intent distribution (support, customer success, executive)
+   - See review rates (approved %, rejected %, editing %)
+   - Check First Response Time (FRT) metrics with SLA tracking
+
+4. **Settings**: Go to http://localhost:5173/settings
+   - Adjust tone level (1=very formal, 5=very casual)
+   - Update blocklist phrases (e.g., "free trial", "limited time offer")
+   - Configure approval threshold
+
+### What You'll See
+- **No PII**: All demo data uses synthetic customer emails
+- **Real UI**: Full-featured interface showing the complete review workflow
+- **Working Analytics**: Metrics calculated from demo data
+- **Configurable Settings**: Edit workspace preferences in real-time
+
+### Next Steps
+To connect real Gmail and generate live drafts:
+1. Follow the [Gmail Integration](#gmail-integration) setup below
+2. Configure Auth0 Token Vault for secure API access
+3. Connect your Gmail account and start drafting!
 
 ## Quick Start (2 minutes)
 
@@ -81,7 +155,7 @@ make up          # Start all services (postgres, redis, qdrant)
 make down        # Stop all services
 make psql        # Connect to PostgreSQL database
 make migrate     # Run database migrations
-make seed        # Seed database with sample data (placeholder)
+make seed        # Seed database with demo data (4 sample drafts, workspace settings)
 make logs        # Show logs from all services
 make status      # Show status of all services
 make restart     # Restart all services

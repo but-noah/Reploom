@@ -6,7 +6,7 @@ import {
   formatPercentage,
   type AnalyticsSummary,
 } from "../analytics";
-import apiClient from "../api-client";
+import { apiClient } from "../api-client";
 
 vi.mock("../api-client");
 

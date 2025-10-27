@@ -2,7 +2,7 @@
  * Analytics API client functions
  */
 
-import apiClient from "./api-client";
+import { apiClient } from "./api-client";
 
 export interface IntentsCount {
   [intent: string]: number;
@@ -66,7 +66,7 @@ export interface GetAnalyticsSummaryParams {
 export async function getAnalyticsSummary(
   params?: GetAnalyticsSummaryParams
 ): Promise<AnalyticsSummary> {
-  const response = await apiClient.get<AnalyticsSummary>("/analytics/summary", {
+  const response = await apiClient.get<AnalyticsSummary>("/api/analytics/summary", {
     params: {
       window: params?.window || "7d",
       workspace_id: params?.workspace_id,
