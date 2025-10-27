@@ -22,9 +22,15 @@ class DraftReview(SQLModel, table=True):
     user_id: str = Field(index=True)
     user_email: str
 
-    # Link to Gmail thread and draft
+    # Email provider (gmail or outlook)
+    email_provider: str = Field(
+        default="gmail",
+        description="Email provider (gmail, outlook)"
+    )
+
+    # Link to Gmail/Outlook thread and draft
     thread_id: str = Field(index=True)
-    draft_id: str | None = None  # Gmail draft ID (if created)
+    draft_id: str | None = None  # Gmail/Outlook draft ID (if created)
 
     # LangGraph run information
     run_id: str | None = Field(default=None, index=True)

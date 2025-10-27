@@ -59,6 +59,17 @@ class Settings(BaseSettings):
         """Parse Calendar scopes from space-separated string to list."""
         return [scope.strip() for scope in self.CALENDAR_SCOPES.split() if scope.strip()]
 
+    # Microsoft 365 / Outlook API Configuration
+    MICROSOFT_CLIENT_ID: str = ""
+    MICROSOFT_CLIENT_SECRET: str = ""
+    OUTLOOK_SCOPES: str = "https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.ReadWrite"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def OUTLOOK_SCOPES_LIST(self) -> list[str]:
+        """Parse Outlook scopes from space-separated string to list."""
+        return [scope.strip() for scope in self.OUTLOOK_SCOPES.split() if scope.strip()]
+
     # OpenAI
     OPENAI_API_KEY: str
 
