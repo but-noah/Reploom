@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from app.api.routes.analytics import router as analytics_router
+from app.api.routes.calendar import calendar_router
 from app.api.routes.chat import agent_router
 from app.api.routes.documents import documents_router
 from app.api.routes.gmail import gmail_router
@@ -15,6 +16,7 @@ api_router.include_router(agent_router)
 
 api_router.include_router(analytics_router)
 api_router.include_router(auth_router, tags=["auth"])
+api_router.include_router(calendar_router)
 api_router.include_router(documents_router)
 api_router.include_router(gmail_router)
 api_router.include_router(kb_router)
