@@ -30,10 +30,13 @@ migrate: ## Run database migrations (initialize database)
 	@echo "Initializing database schema..."
 	. .venv/bin/activate && python -c "from app.core.db import init_db; init_db(); print('Database initialized successfully!')"
 
-seed: ## Seed database with sample data (placeholder)
-	@echo "Seeding database..."
-	@echo "Note: Implement seeding logic in app/core/db.py or a separate script"
-	@echo "For now, this is a placeholder target."
+seed: ## Seed database with demo data for 5-minute walkthrough
+	@echo "Seeding database with demo data..."
+	@if [ ! -d ".venv" ]; then \
+		echo "Virtual environment not found. Run 'uv sync' first."; \
+		exit 1; \
+	fi
+	. .venv/bin/activate && python seed_demo.py
 
 logs: ## Show logs from all services
 	docker compose logs -f

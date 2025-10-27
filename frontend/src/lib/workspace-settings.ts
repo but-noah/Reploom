@@ -16,7 +16,7 @@ export interface WorkspaceSettingsUpdate {
 }
 
 export async function getWorkspaceSettings(workspaceId: string): Promise<WorkspaceSettings> {
-  const response = await apiClient.get<WorkspaceSettings>(`/workspace-settings/${workspaceId}`);
+  const response = await apiClient.get<WorkspaceSettings>(`/api/workspace-settings/${workspaceId}`);
   return response.data;
 }
 
@@ -24,6 +24,6 @@ export async function updateWorkspaceSettings(
   workspaceId: string,
   settings: WorkspaceSettingsUpdate
 ): Promise<WorkspaceSettings> {
-  const response = await apiClient.put<WorkspaceSettings>(`/workspace-settings/${workspaceId}`, settings);
+  const response = await apiClient.put<WorkspaceSettings>(`/api/workspace-settings/${workspaceId}`, settings);
   return response.data;
 }

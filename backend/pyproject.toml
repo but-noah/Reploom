@@ -3,7 +3,7 @@ name = "backend"
 version = "0.1.0"
 description = "Reploom: AI-Powered Multi-Agent Email Responder - LangGraph Python/FastAPI Backend"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     "auth0-ai>=1.0.0b4",
     "auth0-ai-langchain>=1.0.0b4",
@@ -34,6 +34,13 @@ dependencies = [
     "opentelemetry-instrumentation-httpx>=0.49b2",
     "opentelemetry-exporter-otlp-proto-grpc>=1.28.2",
 ]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app"]
 
 [tool.ruff]
 line-length = 100
